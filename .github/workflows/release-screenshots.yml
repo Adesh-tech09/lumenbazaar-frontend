@@ -12,7 +12,20 @@ permissions:
   contents: read
 
 jobs:
+  malware-scan:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Scan for known malware indicators
+        run: node scripts/security/scan-malware.mjs
+
   capture-screenshots:
+    needs: malware-scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -94,14 +107,14 @@ jobs:
         run: |
           cat > test-results/RELEASE_EVIDENCE.md << 'EOF'
           # Release Screenshot Evidence
-          
+
           **Commit:** ${{ steps.commit.outputs.hash }}
           **Branch:** ${{ steps.commit.outputs.branch }}
           **Date:** ${{ steps.commit.outputs.timestamp }}
           **Deployment URL:** ${{ inputs.deployment_url || 'pending' }}
-          
+
           ## Screenshot Coverage
-          
+
           - Dashboard state
           - Explore discovery interface
           - Resource detail view with payment terms
@@ -110,26 +123,26 @@ jobs:
           - Receipt recovery after reload
           - Receipt detail view
           - Error state handling
-          
+
           ## Variants
-          
+
           - ✓ Desktop (Chrome)
           - ✓ Mobile (Pixel 7)
-          
+
           ## Redaction Status
-          
+
           - ✓ Stellar addresses redacted
           - ✓ Contract IDs redacted
           - ✓ Seed phrases redacted
           - ✓ Private keys redacted
           - ✓ Transaction hashes redacted
           - ✓ XDR payloads redacted
-          
+
           ## Verification
-          
+
           Generated: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           Workflow: ${{ github.workflow }}
-          
+
           EOF
           cat test-results/RELEASE_EVIDENCE.md
 
