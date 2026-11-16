@@ -27,6 +27,9 @@
     "verify-backend-pin": "node scripts/verify-backend-pin.mjs",
     "update-backend-pin": "node scripts/update-backend-pin.mjs",
     "generate-client": "node scripts/update-backend-pin.mjs",
+    "security:install-hooks": "git config core.hooksPath .githooks",
+    "security:malware-scan": "node scripts/security/scan-malware.mjs",
+    "security:malware-test": "node --test scripts/security/scan-malware.fixtures.mjs",
     "format:check": "prettier --check .",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
