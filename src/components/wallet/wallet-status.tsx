@@ -11,7 +11,7 @@ import {
   type WalletRecoveryBusyState,
   type WalletRecoveryNotice
 } from "@/components/wallet/wallet-network-recovery";
-import { networkLabel } from "@/config/networks";
+import { getNetworkConfig, networkLabel } from "@/config/networks";
 import { loadRuntimeConfig } from "@/config/runtime";
 import {
   connectFreighterWallet,
@@ -30,7 +30,7 @@ export function WalletStatus() {
   const [wallet, setWallet] = useState<WalletConnectionState>({
     ...initialWalletState,
     expectedNetwork: config.defaultNetwork,
-    expectedPassphrase: config.networks[config.defaultNetwork].passphrase
+    expectedPassphrase: getNetworkConfig(config.defaultNetwork).passphrase
   });
   const [busy, setBusy] = useState<WalletRecoveryBusyState>(null);
   const [notice, setNotice] = useState<WalletRecoveryNotice | undefined>(undefined);

@@ -26,6 +26,9 @@ pnpm check
 pnpm test:e2e
 ```
 
+The global offline/degraded-network banner, its state sources, and its no-auto-retry guarantee are
+documented in [docs/network-status-banner.md](docs/network-status-banner.md).
+
 ### Backend API Contract
 
 The frontend types are generated from the backend OpenAPI specification pinned at a specific backend commit to prevent schema drift. Generated types are wired to hand-maintained validators using compile-time type assertions.

@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { getNetworkConfig } from "@/config/networks";
 import { loadRuntimeConfig } from "@/config/runtime";
+import { NetworkStatusBanner } from "@/components/layout/network-status-banner";
 import { WalletStatus } from "@/components/wallet/wallet-status";
 
 const navItems = [
@@ -30,7 +32,7 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const config = loadRuntimeConfig();
-  const network = config.networks[config.defaultNetwork];
+  const network = getNetworkConfig(config.defaultNetwork);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -79,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
+      <NetworkStatusBanner />
       <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
