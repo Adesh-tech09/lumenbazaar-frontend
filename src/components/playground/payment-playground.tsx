@@ -173,6 +173,10 @@ function DemoPaymentPlayground() {
   function prepare(resource: Resource, authMode: PlaygroundAuthorizationMode = authMode) {
     const nextRequest = buildPlaygroundPaymentRequest(resource, { authorizationMode: authMode });
 
+    setChallenge(null);
+    setAuthorization(null);
+    setPaidFlowOutcome(null);
+    setPaidFlowState(null);
     setPreview(buildPaymentRequiredPreview(resource));
     setPaymentRequest(nextRequest);
     setVerification(null);
@@ -215,6 +219,10 @@ function DemoPaymentPlayground() {
     setPreflightError(null);
     setPreview(null);
     setPaymentRequest(null);
+    setChallenge(null);
+    setAuthorization(null);
+    setPaidFlowOutcome(null);
+    setPaidFlowState(null);
     setAnnouncement(`Switched to ${newMode === "live" ? "live API" : "simulation"} mode.`);
     setMode("simulation");
 
@@ -531,6 +539,10 @@ function DemoPaymentPlayground() {
                     setVerification(null);
                     setSettlement(null);
                     setError(null);
+                    setChallenge(null);
+                    setAuthorization(null);
+                    setPaidFlowOutcome(null);
+                    setPaidFlowState(null);
                   }}
                   value={resource.id}
                 >
@@ -620,9 +632,39 @@ function DemoPaymentPlayground() {
                 <div className="space-y-4 rounded-md border border-teal-200 bg-teal-50 p-3">
                   <div>
                     <p className="text-sm font-medium text-teal-900">Payment Challenge</p>
+                    <section
+                      aria-label="Pre-authorization payment breakdown"
+                      className="mt-3 rounded-md border border-teal-200 bg-white p-3"
+                    >
+                      <p className="text-sm font-semibold text-slate-950">
+                        Pre-authorization breakdown
+                      </p>
+                      <dl className="mt-2 grid gap-3 text-xs sm:grid-cols-3">
+                        <div className="min-w-0">
+                          <dt className="font-medium text-slate-600">Resource amount</dt>
+                          <dd className="mt-1 break-all font-semibold text-slate-950">
+                            {resource.amount} {resource.assetCode}
+                          </dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="font-medium text-slate-600">Estimated network fee</dt>
+                          <dd className="mt-1 text-slate-700">Unavailable — no fee simulation</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="font-medium text-slate-600">Estimated authorized total</dt>
+                          <dd className="mt-1 text-slate-700">
+                            Unavailable — cannot calculate without a fee simulation
+                          </dd>
+                        </div>
+                      </dl>
+                      <p className="mt-3 text-xs leading-5 text-slate-600">
+                        Any network fee shown would be an estimate until signing. This wallet flow
+                        does not provide a pre-sign fee simulation, so no fee or total is inferred.
+                      </p>
+                    </section>
                     <dl className="mt-2 space-y-1 text-xs text-teal-800">
                       <div>
-                        <dt className="font-medium">Amount:</dt>
+                        <dt className="font-medium">Challenge amount (atomic units):</dt>
                         <dd>{challenge.requirement.amount} atomic units</dd>
                       </div>
                       <div>

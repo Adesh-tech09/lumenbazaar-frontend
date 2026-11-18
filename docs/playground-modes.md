@@ -119,6 +119,18 @@ The playground has two separate mode concepts:
 - Affects: Only the `transaction` field in the payment request
 - Independent of data source: You can use a live resource with simulated authorization, or vice versa
 
+## Pre-authorization amount, fee, and total
+
+After a live x402 challenge is validated, the Wallet Flow shows the resource amount exactly as
+provided by the selected resource, including its decimal precision. The challenge's atomic amount
+is also identified separately so it is not mistaken for a display amount.
+
+The current Freighter flow does not expose a pre-sign transaction simulation result. Therefore the
+network fee and authorized total are explicitly shown as unavailable; the UI does not assume a
+zero fee or calculate a total from an estimate it does not have. If a fee quote is added later, it
+must be labeled as an estimate until signing, and the total must remain unavailable unless the
+amount and fee can both be computed from validated values.
+
 ## Typical Workflows
 
 ### Testing Without API (Fixture-Based)
