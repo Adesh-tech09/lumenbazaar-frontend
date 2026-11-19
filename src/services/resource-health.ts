@@ -1,4 +1,10 @@
 import type { Resource } from "@/services/api/schemas";
+import {
+  formatDateTime,
+  getDefaultLocale,
+  getDefaultTimezone,
+  type FormattedDateTime
+} from "@/lib/datetime-formatter";
 
 export const probeStaleAfterMs = 24 * 60 * 60 * 1000;
 export const catalogStaleAfterMs = 7 * 24 * 60 * 60 * 1000;
@@ -226,10 +232,51 @@ function normalizeTimestamp(value: unknown): string | null {
   return parseEvidenceTimestamp(value) === null ? null : (value as string);
 }
 
-function formatTimestamp(value: string | null) {
+/**
+ * Format a timestamp using default system timezone and locale
+ * @internal Prefer using component-level formatting via useDateTimeFormatter hook
+ * @param value - ISO 8601 timestamp string or null
+ * @returns Formatted datetime string (e.g., "Nov 19, 2024, 2:30:45 PM UTC")
+ */
+function formatTimestamp(value: string | null): string {
   if (value === null) return "unknown";
 
-  return new Date(value).toLocaleString();
+  try {
+    // Use default timezone and locale for service-level formatting
+    return formatDateTime(
+      value,
+      getDefaultTimezone(),
+      getDefaultLocale(),
+      true,
+      true
+    );
+  } catch {
+    // Fallback to basic locale string if formatter fails
+    return new Date(value).toLocaleString();
+  }
+}
+
+/**
+ * Format a timestamp with timezone offset info for DST detection
+ * @internal For internal use; components should use useDateTimeFormatter hook
+ * @param value - ISO 8601 timestamp string or null
+ * @returns Formatted string with timezone abbreviation (e.g., "Nov 19, 2024, 2:30:45 PM EST")
+ */
+export function formatTimestampWithDSTInfo(value: string | null): string {
+  if (value === null) return "unknown";
+
+  try {
+    const formatted = formatDateTime(
+      value,
+      getDefaultTimezone(),
+      getDefaultLocale(),
+      true,
+      true
+    );
+    return formatted;
+  } catch {
+    return new Date(value).toLocaleString();
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -2,6 +2,7 @@ import { Download, ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMotion } from "@/hooks/motion-context";
 
 export type ExportMenuProps = {
   onExportJSON: () => void;
@@ -14,6 +15,7 @@ export type ExportMenuProps = {
 /**
  * Export menu with dropdown options for JSON and CSV formats.
  * Provides accessible keyboard navigation and clear labels.
+ * Motion tokens respect prefers-reduced-motion setting.
  */
 export function ExportMenu({
   onExportJSON,
@@ -24,6 +26,7 @@ export function ExportMenu({
 }: ExportMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { enableMotion } = useMotion();
 
   const handleClickOutside = (e: React.MouseEvent) => {
     if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -66,7 +69,11 @@ export function ExportMenu({
         <Download className="h-4 w-4" aria-hidden="true" />
         Export
         <ChevronDown
-          className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`h-4 w-4 ${
+            enableMotion
+              ? "transition-transform duration-[var(--motion-duration-base)]"
+              : ""
+          } ${isOpen ? "rotate-180" : ""}`}
           aria-hidden="true"
         />
       </Button>
@@ -80,7 +87,7 @@ export function ExportMenu({
           <button
             onClick={handleExportJSON}
             disabled={disabled || isLoading}
-            className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed first:rounded-t-md"
+            className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed first:rounded-t-md transition-colors duration-[var(--motion-duration-base)]"
             role="menuitem"
             aria-label="Export as JSON"
           >
@@ -91,7 +98,7 @@ export function ExportMenu({
           <button
             onClick={handleExportCSV}
             disabled={disabled || isLoading}
-            className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed last:rounded-b-md"
+            className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed last:rounded-b-md transition-colors duration-[var(--motion-duration-base)]"
             role="menuitem"
             aria-label="Export as CSV"
           >

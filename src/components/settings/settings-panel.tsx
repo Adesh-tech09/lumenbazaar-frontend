@@ -17,6 +17,10 @@ import {
   type FrontendSettings,
   type WalletPreference
 } from "@/services/settings";
+import {
+  getAvailableLocales,
+  getAvailableTimezones
+} from "@/lib/datetime-formatter";
 
 const walletOptions: Array<{ label: string; value: WalletPreference }> = [
   { label: "Freighter", value: "freighter" },
@@ -57,10 +61,13 @@ export function SettingsPanel() {
     setMessage("Settings reset to runtime defaults.");
   }
 
+  const timezones = getAvailableTimezones();
+  const locales = getAvailableLocales();
+
   return (
     <>
       <PageHeader
-        description="Configure local frontend preferences for network selection, facilitator routing, and wallet behavior."
+        description="Configure local frontend preferences for network selection, facilitator routing, wallet behavior, and datetime formatting."
         title="Settings"
       />
 
@@ -108,6 +115,42 @@ export function SettingsPanel() {
                 placeholder="http://localhost:8080"
                 value={settings.facilitatorUrl}
               />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-slate-700">Timezone</span>
+              <select
+                className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                onChange={(event) => updateSettings({ timezoneId: event.target.value })}
+                value={settings.timezoneId}
+              >
+                {timezones.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500">
+                Controls how timestamps are displayed with timezone abbreviations and offsets.
+              </p>
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-slate-700">Locale</span>
+              <select
+                className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                onChange={(event) => updateSettings({ localeCode: event.target.value })}
+                value={settings.localeCode}
+              >
+                {locales.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {locale}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500">
+                Determines language and formatting for dates, times, and numbers.
+              </p>
             </label>
 
             <fieldset className="space-y-2">
