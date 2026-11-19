@@ -1,3 +1,4 @@
+import { getNetworkConfig } from "./networks";
 import type { RuntimeConfig } from "./runtime";
 
 export type SecurityHeader = {
@@ -21,7 +22,7 @@ const sharedConnectSourceProtocols = new Set(["https:"]);
  * NEXT_PUBLIC_LUMENBAZAAR_TRUSTED_ORIGINS.
  */
 export function buildContentSecurityPolicy(config: RuntimeConfig): string {
-  const network = config.networks[config.defaultNetwork];
+  const network = getNetworkConfig(config.defaultNetwork);
   const connectSources = new Set([
     "'self'",
     originOf(config.apiBaseUrl),
