@@ -5,12 +5,14 @@ This document describes the SEP-41 asset metadata system and the safe decimal fo
 ## Overview
 
 SEP-41 assets on Stellar are wrapped in Soroban smart contracts. Each asset is uniquely identified by:
-- **Contract ID**: Soroban contract address (C* format, 56 characters)
+
+- **Contract ID**: Soroban contract address (C\* format, 56 characters)
 - **Symbol**: Asset symbol (1-12 alphanumeric characters, e.g., "USDC")
 - **Decimals**: Number of decimal places (0–7, per Stellar standard)
 - **Issuer** (optional): Original Stellar asset issuer for cross-reference
 
 Amounts on Stellar are always stored as integers (atomic units). Formatting requires:
+
 1. Loading asset metadata from network configuration
 2. Safe division using BigInt (no floating-point arithmetic)
 3. Removing trailing zeros for clean display
@@ -41,6 +43,7 @@ export const stellarNetworks: Record<NetworkId, NetworkConfig> = {
 ```
 
 **Key points:**
+
 - Assets are identified by **contract ID**, never by symbol alone
 - Multiple assets can have the same symbol but different contracts (e.g., different USDC versions)
 - Decimals are validated: 0–7 (no negative, no > 7)
@@ -94,6 +97,7 @@ console.log(result);
 ```
 
 **Parameters:**
+
 - `atomicAmount` (string): Positive integer without leading zeros (e.g., "1234567")
 - `asset` (FormattableAsset): `{ contractId, symbol, decimals }`
 
@@ -105,20 +109,20 @@ console.log(result);
 
 ```typescript
 // Standard USDC (6 decimals)
-formatAtomicAmount("1000000", usdc).formatted  // "1"
-formatAtomicAmount("500000", usdc).formatted   // "0.5"
+formatAtomicAmount("1000000", usdc).formatted; // "1"
+formatAtomicAmount("500000", usdc).formatted; // "0.5"
 
 // Very small amount
-formatAtomicAmount("1", usdc).formatted        // "0.000001"
+formatAtomicAmount("1", usdc).formatted; // "0.000001"
 
 // Trailing zeros trimmed
-formatAtomicAmount("1100000", usdc).formatted  // "1.1"
+formatAtomicAmount("1100000", usdc).formatted; // "1.1"
 
 // Zero decimals (whole numbers)
-formatAtomicAmount("100", whole).formatted     // "100"
+formatAtomicAmount("100", whole).formatted; // "100"
 
 // Max decimals (7)
-formatAtomicAmount("12345678", tiny).formatted // "1.2345678"
+formatAtomicAmount("12345678", tiny).formatted; // "1.2345678"
 ```
 
 ### `tryFormatAmount(atomicAmount, contractId, network)`
@@ -142,6 +146,7 @@ if (result !== null) {
 ```
 
 **Parameters:**
+
 - `atomicAmount` (string): Atomic amount
 - `contractId` (string): Soroban contract ID to look up
 - `network` (NetworkId): "stellar:testnet" or "stellar:pubnet"
@@ -151,6 +156,7 @@ if (result !== null) {
 **Never throws:** Returns null for invalid input or missing metadata
 
 **Use cases:**
+
 - Display payment requirement amounts
 - Show transaction amounts with fallback
 - Format amounts from API responses
@@ -179,6 +185,7 @@ function MyComponent({ amount, contractId, network }) {
 ```
 
 **Props:**
+
 - `formattedAmount` (FormattedAmount | null): Result from formatter or null
 - `fallbackContractId` (string, optional): Shows when metadata unknown
 - `showAtomic` (boolean, default: true): Toggle atomic value display
@@ -187,6 +194,7 @@ function MyComponent({ amount, contractId, network }) {
 **Display modes:**
 
 **With metadata:**
+
 ```
 1.234567 USDC
 atomic: 1234567
@@ -194,6 +202,7 @@ contract: CBZXN7PI...DQSQE
 ```
 
 **Without metadata (fallback):**
+
 ```
 Unknown asset
 contract: CBZXN7PI...DQSQE
@@ -210,13 +219,14 @@ The formatter uses **BigInt exclusively**, never floating-point:
 const amount = BigInt("170141183460469231731687303715884105727"); // i128 max
 const divisor = BigInt(10 ** 6);
 
-const integer = amount / divisor;   // ✓ Safe: whole division
-const fraction = amount % divisor;  // ✓ Safe: remainder
+const integer = amount / divisor; // ✓ Safe: whole division
+const fraction = amount % divisor; // ✓ Safe: remainder
 
 // NOT: const result = amount / divisor; (floating-point, ✗ loses precision)
 ```
 
 **Why BigInt?**
+
 - IEEE 754 floats lose precision for numbers > 2^53
 - Stellar amounts can exceed this (i128 boundary)
 - BigInt preserves exact values; no rounding errors
@@ -270,7 +280,7 @@ const usdc_v1 = tryFormatAmount(amount, "CA7QYNF7...", "stellar:pubnet");
 const usdc_v2 = tryFormatAmount(amount, "CB7QYNF7...", "stellar:testnet");
 
 // Both show "1.234567 USDC" but:
-usdc_v1.contractId !== usdc_v2.contractId // ✓ Contract shown for verification
+usdc_v1.contractId !== usdc_v2.contractId; // ✓ Contract shown for verification
 ```
 
 ### Invalid Metadata Handling
@@ -283,6 +293,7 @@ usdc_v1.contractId !== usdc_v2.contractId // ✓ Contract shown for verification
 ### Fallback Display
 
 Unknown assets still show:
+
 - Contract address (for verification)
 - Atomic amount (for exact value)
 - "Unknown asset" label (clear signal)
@@ -312,6 +323,7 @@ pnpm test:e2e:smoke
 ```
 
 **Covered scenarios:**
+
 - ✓ Standard amounts with various decimals
 - ✓ Edge cases: zero decimals, max decimals, very small/large
 - ✓ Invalid input: negative, zero, decimals, leading zeros
@@ -385,9 +397,10 @@ console.log(result.formatted); // "1"
 
 ### "Invalid atomic amount" error
 
-**Cause:** Amount string doesn't match the pattern /^[1-9]\d*$/
+**Cause:** Amount string doesn't match the pattern /^[1-9]\d\*$/
 
 **Solutions:**
+
 - Remove leading zeros: "01234" → "1234"
 - Use positive integers: "-100" → "100"
 - Ensure no decimals: "123.45" → "12345" (with adjusted decimals)
@@ -398,6 +411,7 @@ console.log(result.formatted); // "1"
 **Cause:** Decimals not in range 0–7
 
 **Solutions:**
+
 - Use SEP-41 standard (0–7)
 - Check asset metadata from network config
 - Validate before formatting
@@ -407,6 +421,7 @@ console.log(result.formatted); // "1"
 **Cause:** Asset not found in network configuration
 
 **Solutions:**
+
 - Verify contract ID matches exactly (case-sensitive)
 - Check correct network passed ("stellar:testnet" vs "stellar:pubnet")
 - Add asset to network config if missing
@@ -417,10 +432,20 @@ console.log(result.formatted); // "1"
 **Cause:** Using different formatters or missing memoization
 
 **Solutions:**
+
 - Always use `tryFormatAmount` for lookups
 - Memoize formatted result in React components
 - Use `FormattedAmountDisplay` for consistent rendering
 - Don't duplicate formatting logic
+
+## Lossless summation
+
+`sumDecimalAmounts` adds decimal amount strings with BigInt scaling, so mixed decimal places,
+zero values, and amounts far above `Number.MAX_SAFE_INTEGER` stay exact. The seller payments view
+uses it through `summarizeSellerEarnings`, which groups settled totals by canonical asset
+(network + asset code + issuer, never symbol alone), reports the covered time window, counts
+pending and failed attempts separately, and renders **Unavailable** for any group containing an
+unparseable amount instead of guessing.
 
 ## References
 

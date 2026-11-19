@@ -232,6 +232,74 @@ export async function reconnectWallet(
 }
 
 /**
+ * Why a wallet session no longer matches wallet provider state.
+ *
+ * The states are deliberately distinct so each one can be recovered
+ * differently: an account change needs the user to review which account signs,
+ * while a network change needs the recovery panel.
+ */
+export type WalletSessionChange =
+  | "unchanged"
+  | "account_changed"
+  | "network_changed"
+  | "network_unverified"
+  | "disconnected"
+  | "unavailable";
+
+export type WalletSessionRevalidation = {
+  change: WalletSessionChange;
+  /** Only a session that still matches provider state may authorize payments. */
+  canAuthorizePayments: boolean;
+  wallet: WalletConnectionState;
+};
+
+/**
+ * Compares the session a tab believes it has with the wallet state just read
+ * from the provider.
+ */
+export function describeWalletSessionChange(
+  previous: WalletConnectionState,
+  next: WalletConnectionState
+): WalletSessionChange {
+  if (next.status === "disconnected") return "disconnected";
+  if (next.status === "error" || next.status === "unavailable") return "unavailable";
+
+  if (previous.address !== undefined && next.address !== previous.address) {
+    return "account_changed";
+  }
+
+  if (next.status === "network_unknown" || next.actualNetwork === undefined) {
+    return "network_unverified";
+  }
+
+  if (previous.actualNetwork !== next.actualNetwork) {
+    return "network_changed";
+  }
+
+  return next.status === "connected" ? "unchanged" : "network_changed";
+}
+
+/**
+ * Re-reads the wallet after a tab regains visibility or the provider reports a
+ * change, and reports what moved. The session is never assumed to be valid:
+ * payments are only allowed while the account and network still match.
+ */
+export async function revalidateWalletSession(
+  previous: WalletConnectionState,
+  expectedNetwork: NetworkId = loadRuntimeConfig().defaultNetwork,
+  readWallet: (network: NetworkId) => Promise<WalletConnectionState> = reconnectWallet
+): Promise<WalletSessionRevalidation> {
+  const wallet = await readWallet(expectedNetwork);
+  const change = describeWalletSessionChange(previous, wallet);
+
+  return {
+    canAuthorizePayments: change === "unchanged" && wallet.status === "connected",
+    change,
+    wallet
+  };
+}
+
+/**
  * Moves the wallet onto the expected network when the wallet supports it.
  *
  * The result is always verified by reading the wallet network again, so a

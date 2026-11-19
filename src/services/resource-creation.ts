@@ -71,6 +71,131 @@ export const resourceDraftSchema = z.object({
 
 export type ResourceDraft = z.infer<typeof resourceDraftSchema>;
 
+/** Version stamped on exported draft files. Unknown versions are rejected. */
+export const RESOURCE_DRAFT_EXPORT_VERSION = 1;
+
+/** Upper bound for an imported draft file, measured in UTF-8 bytes. */
+export const MAX_RESOURCE_DRAFT_IMPORT_BYTES = 64 * 1024;
+
+/**
+ * Fields that may leave or enter the browser in a draft file. The allowlist is
+ * explicit so session data, wallet secrets, and future schema additions are
+ * never exported by accident.
+ */
+const EXPORTABLE_DRAFT_FIELDS = [
+  "name",
+  "description",
+  "type",
+  "url",
+  "routeTemplate",
+  "network",
+  "assetCode",
+  "assetIssuer",
+  "amount",
+  "payTo",
+  "inputSchema",
+  "outputSchema",
+  "extensions",
+  "createdAt",
+  "updatedAt",
+  "status"
+] as const satisfies ReadonlyArray<keyof ResourceDraft>;
+
+export type ResourceDraftExport = {
+  version: typeof RESOURCE_DRAFT_EXPORT_VERSION;
+  exportedAt: string;
+  draft: ResourceDraft;
+};
+
+export type ResourceDraftImportErrorCode =
+  | "INVALID_JSON"
+  | "OVERSIZED"
+  | "UNSUPPORTED_VERSION"
+  | "INVALID_DRAFT";
+
+export class ResourceDraftImportError extends Error {
+  readonly code: ResourceDraftImportErrorCode;
+
+  constructor(code: ResourceDraftImportErrorCode, message: string) {
+    super(message);
+    this.name = "ResourceDraftImportError";
+    this.code = code;
+  }
+}
+
+/**
+ * Serializes a draft as schema-validated JSON containing only non-secret draft
+ * metadata.
+ *
+ * @throws ZodError if the draft does not satisfy the draft schema
+ */
+export function exportResourceDraftToJson(
+  draft: ResourceDraft,
+  timestamp: Date = new Date()
+): string {
+  const validated = resourceDraftSchema.parse(draft);
+  const exported: ResourceDraftExport = {
+    draft: Object.fromEntries(
+      EXPORTABLE_DRAFT_FIELDS.map((field) => [field, validated[field]])
+    ) as ResourceDraft,
+    exportedAt: timestamp.toISOString(),
+    version: RESOURCE_DRAFT_EXPORT_VERSION
+  };
+
+  return JSON.stringify(exported, null, 2);
+}
+
+/**
+ * Parses and validates a draft file produced by `exportResourceDraftToJson`.
+ *
+ * Oversized payloads, unknown versions, and invalid values are rejected with a
+ * typed error so the UI can explain exactly what went wrong. Fields outside the
+ * draft schema are dropped rather than trusted.
+ */
+export function importResourceDraftFromJson(raw: string): ResourceDraft {
+  if (new TextEncoder().encode(raw).length > MAX_RESOURCE_DRAFT_IMPORT_BYTES) {
+    throw new ResourceDraftImportError(
+      "OVERSIZED",
+      `Draft files must be smaller than ${MAX_RESOURCE_DRAFT_IMPORT_BYTES / 1024} KB.`
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    throw new ResourceDraftImportError("INVALID_JSON", "The draft file is not valid JSON.");
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new ResourceDraftImportError("INVALID_DRAFT", "The draft file must be a JSON object.");
+  }
+
+  const { draft, version } = parsed as { draft?: unknown; version?: unknown };
+
+  if (version !== RESOURCE_DRAFT_EXPORT_VERSION) {
+    throw new ResourceDraftImportError(
+      "UNSUPPORTED_VERSION",
+      `Unsupported draft file version. Expected ${RESOURCE_DRAFT_EXPORT_VERSION}.`
+    );
+  }
+
+  if (typeof draft !== "object" || draft === null || Array.isArray(draft)) {
+    throw new ResourceDraftImportError("INVALID_DRAFT", "The draft file does not contain a draft.");
+  }
+
+  const result = resourceDraftSchema.safeParse(draft);
+
+  if (!result.success) {
+    throw new ResourceDraftImportError(
+      "INVALID_DRAFT",
+      result.error.issues[0]?.message ?? "The draft file failed validation."
+    );
+  }
+
+  return result.data;
+}
+
 // Schema for final validation before publishing
 export const resourceDraftPublishSchema = resourceDraftSchema
   .refine((draft) => draft.name.trim().length > 0, {
