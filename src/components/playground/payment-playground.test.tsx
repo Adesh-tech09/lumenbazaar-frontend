@@ -1,8 +1,15 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 import { PaymentPlayground } from "./payment-playground";
 import * as runtimeConfig from "@/config/runtime";
+import { demoResources } from "@/fixtures/lumenbazaar";
+import { apiClient } from "@/services/api/client";
+import {
+  expectedTermsForResource,
+  requestPaymentChallenge,
+  type ValidatedPaymentChallenge
+} from "@/services/x402/challenge";
 
 // Mock modules
 vi.mock("@/config/runtime", () => ({
@@ -29,9 +36,39 @@ vi.mock("@/services/x402/paid-flow", () => ({
   }
 }));
 
+function makeValidatedChallenge(resourceUrl: string): ValidatedPaymentChallenge {
+  const requirement = {
+    amount: "500000",
+    asset: "CBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQE",
+    extra: {},
+    maxTimeoutSeconds: 60,
+    network: "stellar:testnet" as const,
+    payTo: demoResources[0]!.payTo,
+    scheme: "exact" as const
+  };
+
+  return {
+    challenge: {
+      accepts: [requirement],
+      resource: { url: resourceUrl },
+      x402Version: 2
+    },
+    expiresAt: Date.now() + 60_000,
+    fingerprint: "test-fingerprint",
+    receivedAt: Date.now(),
+    request: { headers: [], method: "GET", url: resourceUrl },
+    requirement
+  };
+}
+
 describe("PaymentPlayground", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(runtimeConfig.isDemoMode).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders the component when in demo mode", () => {
@@ -119,6 +156,45 @@ describe("PaymentPlayground", () => {
       
       // After challenge is loaded, this button should appear
       // Button enables wallet signing
+    });
+    it("shows exact resource precision and does not invent an unavailable fee or total", async () => {
+      vi.spyOn(apiClient, "listResources").mockRejectedValue(new Error("API unavailable"));
+      vi.spyOn(apiClient, "getSupported").mockResolvedValue({
+        extensions: [],
+        kinds: [],
+        signers: {}
+      });
+
+      const resource = demoResources[0]!;
+      vi.mocked(expectedTermsForResource).mockReturnValue({
+        amount: "500000",
+        asset: "CBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQE",
+        network: "stellar:testnet",
+        payTo: resource.payTo,
+        resourceUrl: resource.url
+      });
+      vi.mocked(requestPaymentChallenge).mockResolvedValue(
+        makeValidatedChallenge(resource.url)
+      );
+
+      render(<PaymentPlayground />);
+      fireEvent.click(screen.getByRole("button", { name: /Live 402/i }));
+
+      expect(await screen.findByText("Pre-authorization breakdown")).toBeInTheDocument();
+      const breakdown = screen.getByRole("region", {
+        name: "Pre-authorization payment breakdown"
+      });
+      expect(within(breakdown).getByText("0.0500000 USDC")).toBeInTheDocument();
+      expect(within(breakdown).getByText("Unavailable — no fee simulation")).toBeInTheDocument();
+      expect(
+        within(breakdown).getByText("Unavailable — cannot calculate without a fee simulation")
+      ).toBeInTheDocument();
+      expect(within(breakdown).getByText(/no fee or total is inferred/i)).toBeInTheDocument();
+
+      fireEvent.change(screen.getByRole("combobox", { name: /Paid resource/ }), {
+        target: { value: demoResources[1]!.id }
+      });
+      expect(screen.queryByText("Pre-authorization breakdown")).not.toBeInTheDocument();
     });
   });
 
