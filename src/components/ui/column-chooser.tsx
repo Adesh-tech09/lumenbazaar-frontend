@@ -117,14 +117,18 @@ export function ColumnChooser({
     };
   }, [isOpen]);
 
-  // Close menu on Escape key
+  // Close menu on Escape key and restore focus
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         setIsOpen(false);
-        triggerRef.current?.focus();
+        // Restore focus to trigger after closing
+        requestAnimationFrame(() => {
+          triggerRef.current?.focus();
+        });
       }
     };
 
@@ -132,6 +136,16 @@ export function ColumnChooser({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
+  }, [isOpen]);
+
+  // Restore focus when menu closes
+  useEffect(() => {
+    if (isOpen) return;
+
+    // Only restore if we previously had focus
+    if (document.activeElement === menuRef.current || menuRef.current?.contains(document.activeElement as Node)) {
+      triggerRef.current?.focus();
+    }
   }, [isOpen]);
 
   const handleToggleColumn = useCallback(
