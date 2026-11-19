@@ -3,6 +3,14 @@ import { QueryClient } from "@tanstack/react-query";
 export function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
+      mutations: {
+        // Connectivity recovery only re-runs the read-only status probe. Unsafe
+        // mutations must be retried deliberately by the user, never automatically.
+        // `always` also prevents React Query from queueing a mutation while
+        // offline and resuming it on reconnect.
+        networkMode: "always",
+        retry: false
+      },
       queries: {
         refetchOnWindowFocus: false,
         retry: 1,
@@ -18,6 +26,7 @@ export const queryKeys = {
   dashboard: ["dashboard"] as const,
   health: ["health"] as const,
   networks: ["networks"] as const,
+  networkStatus: ["network-status"] as const,
   operators: ["operators"] as const,
   resources: (filters: Record<string, unknown>) => ["resources", filters] as const,
   search: (filters: Record<string, unknown>) => ["search", filters] as const,

@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { TelemetryProvider } from "@/app/telemetry-context";
+import { MotionProvider } from "@/hooks/motion-context";
+import { NetworkStatusProvider } from "@/components/layout/network-status-provider";
 import { SellerSessionProvider } from "@/components/seller/seller-session-provider";
 import { loadRuntimeConfig } from "@/config/runtime";
 import { createQueryClient } from "@/services/api/query";
@@ -73,9 +75,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TelemetryProvider service={telemetryService}>
-        <SellerSessionProvider>{children}</SellerSessionProvider>
-      </TelemetryProvider>
+      <MotionProvider>
+        <NetworkStatusProvider>
+          <TelemetryProvider service={telemetryService}>
+            <SellerSessionProvider>{children}</SellerSessionProvider>
+          </TelemetryProvider>
+        </NetworkStatusProvider>
+      </MotionProvider>
     </QueryClientProvider>
   );
 }

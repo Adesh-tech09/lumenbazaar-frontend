@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { networkIdSchema, stellarNetworks, type NetworkId } from "./networks";
+import { networkIdSchema, stellarNetworks, type NetworkConfig, type NetworkId } from "./networks";
 
 const runtimeEnvironmentSchema = z.enum(["demo", "local", "testnet", "mainnet"]);
 
@@ -37,7 +37,7 @@ export type RuntimeConfig = {
   defaultNetwork: NetworkId;
   environment: RuntimeEnvironment;
   features: FeatureFlags;
-  networks: NetworkId[];
+  networks: NetworkConfig[];
   /** Extra https origins allowed by the Content Security Policy connect-src. */
   trustedOrigins: string[];
 };
@@ -80,8 +80,10 @@ export function loadRuntimeConfig(
  * Derives the selectable networks from runtime feature configuration so that
  * stellar:pubnet is never exposed while mainnet is disabled.
  */
-export function resolveEnabledNetworks(enableMainnet: boolean): NetworkId[] {
-  return stellarNetworks.filter((network) => network !== "stellar:pubnet" || enableMainnet);
+export function resolveEnabledNetworks(enableMainnet: boolean): NetworkConfig[] {
+  return Object.values(stellarNetworks).filter(
+    (network) => network.id !== "stellar:pubnet" || enableMainnet
+  );
 }
 
 function bundledPublicEnvironment() {

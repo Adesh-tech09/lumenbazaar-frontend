@@ -1,13 +1,24 @@
 import { AlertCircle, Inbox, LoaderCircle } from "lucide-react";
 
+import { useMotion } from "@/hooks/motion-context";
 import { Button } from "./button";
 import { Card, CardBody } from "./card";
 
+/**
+ * LoadingState component with motion token support.
+ * Shows a spinning loader when motion is enabled, or a static icon when reduced-motion is preferred.
+ * The visual intent (indicating loading) is preserved either way.
+ */
 export function LoadingState({ label = "Loading" }: { label?: string }) {
+  const { enableMotion } = useMotion();
+
   return (
     <Card>
       <CardBody className="flex min-h-32 items-center gap-3 text-slate-600">
-        <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-teal-700" />
+        <LoaderCircle
+          aria-hidden="true"
+          className={`h-5 w-5 text-teal-700 ${enableMotion ? "animate-spin" : ""}`}
+        />
         <span>{label}</span>
       </CardBody>
     </Card>

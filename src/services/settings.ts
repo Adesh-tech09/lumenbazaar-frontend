@@ -2,19 +2,45 @@ import { z } from "zod";
 
 import { loadRuntimeConfig, stripTrailingSlash } from "@/config/runtime";
 import { networkIdSchema } from "@/config/networks";
+import { isValidLocale, isValidTimezone } from "@/lib/datetime-formatter";
 
 export const frontendSettingsStorageKey = "lumenbazaar.frontend.settings.v1";
 
 const walletPreferenceSchema = z.enum(["freighter", "manual", "none"]);
 
+/**
+ * Timezone schema: validates against supported IANA timezone IDs
+ * Examples: "UTC", "America/New_York", "Europe/London", "Asia/Tokyo"
+ */
+const timezoneSchema = z
+  .string()
+  .refine(isValidTimezone, "Must be a valid IANA timezone ID");
+
+/**
+ * Locale schema: validates against supported BCP 47 locale codes
+ * Examples: "en-US", "de-DE", "fr-FR", "ja-JP"
+ */
+const localeSchema = z
+  .string()
+  .refine(isValidLocale, "Must be a valid BCP 47 locale code");
+
 export const frontendSettingsSchema = z.object({
   facilitatorUrl: z.string().url(),
   network: networkIdSchema,
-  walletPreference: walletPreferenceSchema
+  walletPreference: walletPreferenceSchema,
+  /** IANA timezone ID for datetime display (e.g., "America/New_York", "UTC") */
+  timezoneId: timezoneSchema,
+  /** BCP 47 locale code for formatting (e.g., "en-US", "de-DE") */
+  localeCode: localeSchema
 });
 
 export type WalletPreference = z.infer<typeof walletPreferenceSchema>;
 export type FrontendSettings = z.infer<typeof frontendSettingsSchema>;
+
+import {
+  getDefaultLocale,
+  getDefaultTimezone
+} from "@/lib/datetime-formatter";
 
 type StorageLike = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 
@@ -24,7 +50,9 @@ export function defaultFrontendSettings(): FrontendSettings {
   return {
     facilitatorUrl: config.apiBaseUrl,
     network: config.defaultNetwork,
-    walletPreference: "freighter"
+    walletPreference: "freighter",
+    timezoneId: getDefaultTimezone(),
+    localeCode: getDefaultLocale()
   };
 }
 
