@@ -2,16 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCcw, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ColumnChooser, type ColumnOption } from "@/components/ui/column-chooser";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { ErrorState, LoadingState } from "@/components/ui/surfaces";
 import { queryKeys } from "@/services/api/query";
 import { loadOperatorSnapshot, statusTone, type OperatorHealthRow } from "@/services/operators";
 import { normalizeUiError } from "@/services/ui-state";
+import { getVisibleColumns } from "@/services/column-preferences";
 
 export function OperatorHealthPage() {
   const {
@@ -83,42 +86,88 @@ export function OperatorHealthPage() {
   );
 }
 
+// Define available columns for the operator health table
+const operatorTableColumns: ColumnOption[] = [
+  { id: "service", label: "Service", required: true },
+  { id: "status", label: "Status", required: true },
+  { id: "checkedAt", label: "Last check" },
+  { id: "detail", label: "Reason" }
+];
+
+const requiredOperatorColumns = ["service", "status"];
+
 export function OperatorHealthTable({ rows }: { rows: OperatorHealthRow[] }) {
+  const [visibleColumns, setVisibleColumns] = useState(
+    getVisibleColumns("operator-health-table", operatorTableColumns.map((c) => c.id))
+  );
+
+  const handleColumnsChange = (newVisibleColumns: string[]) => {
+    setVisibleColumns(newVisibleColumns);
+  };
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-950">Service checks</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            API, worker, search, cache, database, RPC, and Horizon status.
-          </p>
+      <CardHeader className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-slate-950">Service checks</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              API, worker, search, cache, database, RPC, and Horizon status.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck aria-hidden="true" className="h-5 w-5 text-teal-700" />
+            <ColumnChooser
+              tableId="operator-health-table"
+              columns={operatorTableColumns}
+              requiredColumnIds={requiredOperatorColumns}
+              onColumnsChange={handleColumnsChange}
+              buttonLabel="Columns"
+              storage={typeof window !== "undefined" ? window.localStorage : undefined}
+            />
+          </div>
         </div>
-        <ShieldCheck aria-hidden="true" className="h-5 w-5 text-teal-700" />
       </CardHeader>
       <CardBody className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-3 py-2 font-medium">Service</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Last check</th>
-              <th className="px-3 py-2 font-medium">Reason</th>
+              {visibleColumns.includes("service") && (
+                <th className="px-3 py-2 font-medium">Service</th>
+              )}
+              {visibleColumns.includes("status") && (
+                <th className="px-3 py-2 font-medium">Status</th>
+              )}
+              {visibleColumns.includes("checkedAt") && (
+                <th className="px-3 py-2 font-medium">Last check</th>
+              )}
+              {visibleColumns.includes("detail") && (
+                <th className="px-3 py-2 font-medium">Reason</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {rows.map((row) => (
               <tr className="align-top" key={row.name}>
-                <td className="px-3 py-3 font-medium text-slate-950">{row.name}</td>
-                <td className="px-3 py-3">
-                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
-                </td>
-                <td className="px-3 py-3 text-slate-700">
-                  {new Intl.DateTimeFormat("en", {
-                    dateStyle: "medium",
-                    timeStyle: "short"
-                  }).format(new Date(row.checkedAt))}
-                </td>
-                <td className="px-3 py-3 text-slate-600">{row.detail}</td>
+                {visibleColumns.includes("service") && (
+                  <td className="px-3 py-3 font-medium text-slate-950">{row.name}</td>
+                )}
+                {visibleColumns.includes("status") && (
+                  <td className="px-3 py-3">
+                    <Badge tone={statusTone(row.status)}>{row.status}</Badge>
+                  </td>
+                )}
+                {visibleColumns.includes("checkedAt") && (
+                  <td className="px-3 py-3 text-slate-700">
+                    {new Intl.DateTimeFormat("en", {
+                      dateStyle: "medium",
+                      timeStyle: "short"
+                    }).format(new Date(row.checkedAt))}
+                  </td>
+                )}
+                {visibleColumns.includes("detail") && (
+                  <td className="px-3 py-3 text-slate-600">{row.detail}</td>
+                )}
               </tr>
             ))}
           </tbody>

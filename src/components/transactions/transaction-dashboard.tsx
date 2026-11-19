@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ColumnChooser, type ColumnOption } from "@/components/ui/column-chooser";
 import { EmptyState, ErrorState } from "@/components/ui/surfaces";
 import { FormattedAmountDisplay } from "@/components/ui/formatted-amount";
 import type { NetworkId } from "@/config/networks";
@@ -28,6 +29,7 @@ import {
   type PaymentActivity,
   type PaymentActivityStatus
 } from "@/services/payments";
+import { getVisibleColumns } from "@/services/column-preferences";
 
 const allStatuses: Array<PaymentActivityStatus | "all"> = [
   "all",
@@ -37,6 +39,20 @@ const allStatuses: Array<PaymentActivityStatus | "all"> = [
   "settled",
   "failed"
 ];
+
+// Define available columns for the transaction table
+const transactionTableColumns: ColumnOption[] = [
+  { id: "attempt", label: "Attempt", required: true },
+  { id: "seller", label: "Seller" },
+  { id: "resource", label: "Resource" },
+  { id: "status", label: "Status", required: true },
+  { id: "amount", label: "Amount" },
+  { id: "created", label: "Created" },
+  { id: "failure", label: "Failure" },
+  { id: "evidence", label: "Evidence" }
+];
+
+const requiredTransactionColumns = ["attempt", "status"];
 
 export function TransactionDashboard() {
   const mode = loadRuntimeConfig().environment;
@@ -49,6 +65,13 @@ export function TransactionDashboard() {
   const [sellerId, setSellerId] = useState("all");
   const [date, setDate] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(
+    getVisibleColumns("transaction-table", transactionTableColumns.map((c) => c.id))
+  );
+
+  const handleColumnsChange = (newVisibleColumns: string[]) => {
+    setVisibleColumns(newVisibleColumns);
+  };
 
   // Get unfilterable activity for filter options
   const unfilteredActivity = useMemo(
@@ -323,8 +346,8 @@ export function TransactionDashboard() {
           />
         ) : (
           <Card>
-            <CardHeader className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-slate-950">Payment activity</h2>
                   <p className="text-sm text-slate-600 mt-1">
@@ -333,13 +356,23 @@ export function TransactionDashboard() {
                       : "Loading..."}
                   </p>
                 </div>
-                <ExportMenu
-                  onExportJSON={handleExportJSON}
-                  onExportCSV={handleExportCSV}
-                  disabled={paginatedActivity.length === 0}
-                  isLoading={isExporting}
-                  tooltipLabel="Export current page as JSON or CSV"
-                />
+                <div className="flex items-center gap-2">
+                  <ExportMenu
+                    onExportJSON={handleExportJSON}
+                    onExportCSV={handleExportCSV}
+                    disabled={paginatedActivity.length === 0}
+                    isLoading={isExporting}
+                    tooltipLabel="Export current page as JSON or CSV"
+                  />
+                  <ColumnChooser
+                    tableId="transaction-table"
+                    columns={transactionTableColumns}
+                    requiredColumnIds={requiredTransactionColumns}
+                    onColumnsChange={handleColumnsChange}
+                    buttonLabel="Columns"
+                    storage={typeof window !== "undefined" ? window.localStorage : undefined}
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardBody className="relative overflow-x-auto">
@@ -354,19 +387,39 @@ export function TransactionDashboard() {
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="text-xs uppercase text-slate-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Attempt</th>
-                    <th className="px-3 py-2 font-medium">Seller</th>
-                    <th className="px-3 py-2 font-medium">Resource</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">Amount</th>
-                    <th className="px-3 py-2 font-medium">Created</th>
-                    <th className="px-3 py-2 font-medium">Failure</th>
-                    <th className="px-3 py-2 font-medium">Evidence</th>
+                    {visibleColumns.includes("attempt") && (
+                      <th className="px-3 py-2 font-medium">Attempt</th>
+                    )}
+                    {visibleColumns.includes("seller") && (
+                      <th className="px-3 py-2 font-medium">Seller</th>
+                    )}
+                    {visibleColumns.includes("resource") && (
+                      <th className="px-3 py-2 font-medium">Resource</th>
+                    )}
+                    {visibleColumns.includes("status") && (
+                      <th className="px-3 py-2 font-medium">Status</th>
+                    )}
+                    {visibleColumns.includes("amount") && (
+                      <th className="px-3 py-2 font-medium">Amount</th>
+                    )}
+                    {visibleColumns.includes("created") && (
+                      <th className="px-3 py-2 font-medium">Created</th>
+                    )}
+                    {visibleColumns.includes("failure") && (
+                      <th className="px-3 py-2 font-medium">Failure</th>
+                    )}
+                    {visibleColumns.includes("evidence") && (
+                      <th className="px-3 py-2 font-medium">Evidence</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {paginatedActivity.map((item) => (
-                    <TransactionRow activity={item} key={item.attempt.id} />
+                    <TransactionRow
+                      activity={item}
+                      key={item.attempt.id}
+                      visibleColumns={visibleColumns}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -407,7 +460,7 @@ export function TransactionDashboard() {
   );
 }
 
-function TransactionRow({ activity }: { activity: PaymentActivity }) {
+function TransactionRow({ activity, visibleColumns }: { activity: PaymentActivity; visibleColumns: string[] }) {
   const status = paymentActivityStatus(activity);
   const transactionHash = activity.settlement?.transactionHash ?? activity.receipt?.transactionHash;
 
@@ -419,98 +472,114 @@ function TransactionRow({ activity }: { activity: PaymentActivity }) {
 
   return (
     <tr className="align-top">
-      <td className="px-3 py-3">
-        <p className="font-medium text-slate-950">{activity.attempt.id}</p>
-        <p className="mt-1 break-all text-xs text-slate-500">
-          {shortHash(activity.attempt.paymentHash)}
-        </p>
-      </td>
-      <td className="px-3 py-3">
-        <p className="font-medium text-slate-800">
-          {activity.seller?.displayName ?? activity.attempt.sellerId}
-        </p>
-        <p className="mt-1 break-all text-xs text-slate-500">{activity.seller?.domain}</p>
-      </td>
-      <td className="px-3 py-3">
-        {activity.resource ? (
-          <Link
-            className="font-medium text-teal-700 hover:text-teal-900"
-            href={`/resources/${activity.resource.id}`}
-          >
-            {activity.resource.name}
-          </Link>
-        ) : (
-          <span className="text-slate-500">{activity.attempt.resourceId}</span>
-        )}
-        <p className="mt-1 text-xs text-slate-500">{activity.resource?.type ?? "unknown"}</p>
-      </td>
-      <td className="px-3 py-3">
-        <Badge tone={transactionTone(status)}>{status}</Badge>
-      </td>
-      <td className="px-3 py-3">
-        <FormattedAmountDisplay
-          fallbackContractId={activity.attempt.assetCode}
-          formattedAmount={formattedAmount}
-          showAtomic={false}
-        />
-        <span className="block break-all text-xs text-slate-500">{activity.attempt.network}</span>
-      </td>
-      <td className="px-3 py-3 text-slate-700">
-        {new Intl.DateTimeFormat("en", {
-          dateStyle: "medium",
-          timeStyle: "short"
-        }).format(new Date(activity.attempt.createdAt))}
-      </td>
-      <td className="px-3 py-3">
-        {activity.attempt.failureCode ? (
-          <div className="max-w-xs">
-            <Badge tone="danger">{activity.attempt.failureCode}</Badge>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
-              {activity.attempt.failureReason}
-            </p>
-          </div>
-        ) : (
-          <span className="text-slate-500">None</span>
-        )}
-      </td>
-      <td className="px-3 py-3">
-        <div className="flex flex-wrap gap-2">
-          {activity.receipt ? (
+      {visibleColumns.includes("attempt") && (
+        <td className="px-3 py-3">
+          <p className="font-medium text-slate-950">{activity.attempt.id}</p>
+          <p className="mt-1 break-all text-xs text-slate-500">
+            {shortHash(activity.attempt.paymentHash)}
+          </p>
+        </td>
+      )}
+      {visibleColumns.includes("seller") && (
+        <td className="px-3 py-3">
+          <p className="font-medium text-slate-800">
+            {activity.seller?.displayName ?? activity.attempt.sellerId}
+          </p>
+          <p className="mt-1 break-all text-xs text-slate-500">{activity.seller?.domain}</p>
+        </td>
+      )}
+      {visibleColumns.includes("resource") && (
+        <td className="px-3 py-3">
+          {activity.resource ? (
             <Link
-              className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-50"
-              href={`/transactions?receipt=${activity.receipt.id}`}
+              className="font-medium text-teal-700 hover:text-teal-900"
+              href={`/resources/${activity.resource.id}`}
             >
-              <ReceiptText aria-hidden="true" className="h-4 w-4" />
-              {activity.receipt.id}
+              {activity.resource.name}
             </Link>
-          ) : null}
-          {transactionHash ? (
-            isSyntheticTransactionId(transactionHash) ? (
-              <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-2 text-amber-700">
-                <span className="text-xs font-medium">Simulation</span>
-                <span className="text-sm font-mono">{shortHash(transactionHash)}</span>
-              </div>
-            ) : isValidTransactionHash(transactionHash) ? (
-              <a
-                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-50"
-                href={explorerTransactionUrl(activity.attempt.network, transactionHash) || ""}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <ExternalLink aria-hidden="true" className="h-4 w-4" />
-                {shortHash(transactionHash)}
-              </a>
-            ) : (
-              <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-2 text-red-700">
-                <span className="text-xs font-medium">Invalid</span>
-                <span className="text-sm font-mono">{shortHash(transactionHash)}</span>
-              </div>
-            )
           ) : (
-            <span className="text-slate-500">Pending</span>
+            <span className="text-slate-500">{activity.attempt.resourceId}</span>
           )}
-        </div>
-      </td>
+          <p className="mt-1 text-xs text-slate-500">{activity.resource?.type ?? "unknown"}</p>
+        </td>
+      )}
+      {visibleColumns.includes("status") && (
+        <td className="px-3 py-3">
+          <Badge tone={transactionTone(status)}>{status}</Badge>
+        </td>
+      )}
+      {visibleColumns.includes("amount") && (
+        <td className="px-3 py-3">
+          <FormattedAmountDisplay
+            fallbackContractId={activity.attempt.assetCode}
+            formattedAmount={formattedAmount}
+            showAtomic={false}
+          />
+          <span className="block break-all text-xs text-slate-500">{activity.attempt.network}</span>
+        </td>
+      )}
+      {visibleColumns.includes("created") && (
+        <td className="px-3 py-3 text-slate-700">
+          {new Intl.DateTimeFormat("en", {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }).format(new Date(activity.attempt.createdAt))}
+        </td>
+      )}
+      {visibleColumns.includes("failure") && (
+        <td className="px-3 py-3">
+          {activity.attempt.failureCode ? (
+            <div className="max-w-xs">
+              <Badge tone="danger">{activity.attempt.failureCode}</Badge>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                {activity.attempt.failureReason}
+              </p>
+            </div>
+          ) : (
+            <span className="text-slate-500">None</span>
+          )}
+        </td>
+      )}
+      {visibleColumns.includes("evidence") && (
+        <td className="px-3 py-3">
+          <div className="flex flex-wrap gap-2">
+            {activity.receipt ? (
+              <Link
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-50"
+                href={`/transactions?receipt=${activity.receipt.id}`}
+              >
+                <ReceiptText aria-hidden="true" className="h-4 w-4" />
+                {activity.receipt.id}
+              </Link>
+            ) : null}
+            {transactionHash ? (
+              isSyntheticTransactionId(transactionHash) ? (
+                <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-2 text-amber-700">
+                  <span className="text-xs font-medium">Simulation</span>
+                  <span className="text-sm font-mono">{shortHash(transactionHash)}</span>
+                </div>
+              ) : isValidTransactionHash(transactionHash) ? (
+                <a
+                  className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-50"
+                  href={explorerTransactionUrl(activity.attempt.network, transactionHash) || ""}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <ExternalLink aria-hidden="true" className="h-4 w-4" />
+                  {shortHash(transactionHash)}
+                </a>
+              ) : (
+                <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-2 text-red-700">
+                  <span className="text-xs font-medium">Invalid</span>
+                  <span className="text-sm font-mono">{shortHash(transactionHash)}</span>
+                </div>
+              )
+            ) : (
+              <span className="text-slate-500">Pending</span>
+            )}
+          </div>
+        </td>
+      )}
     </tr>
   );
 }
