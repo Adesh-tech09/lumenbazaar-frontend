@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut, PlugZap, Wallet } from "lucide-react";
+import { useSyncExternalStore, useState } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +19,16 @@ import {
   describeWalletNetwork,
   disconnectWallet,
   initialWalletState,
+  loadWalletProviderPreference,
   manualNetworkSwitchSteps,
   reconnectWallet,
+  resetWalletProviderPreference,
+  resolveWalletProvider,
+  saveWalletProviderPreference,
+  subscribeWalletProviderPreference,
+  switchWalletNetwork,
+  walletProviders,
+  type WalletConnectionState
   revalidateWalletSession,
   switchWalletNetwork,
   type WalletConnectionState,
@@ -107,8 +116,38 @@ export function WalletStatus() {
     };
   }, [config.defaultNetwork]);
 
+  // Storage is external state; the server snapshot stays empty and the browser
+  // snapshot picks up the saved provider without an extra state write.
+  const preference = useSyncExternalStore(
+    subscribeWalletProviderPreference,
+    loadWalletProviderPreference,
+    () => undefined
+  );
+
   async function connect() {
     setNotice(undefined);
+
+    // A saved provider that is no longer available must surface a provider
+    // choice instead of silently approving the connection.
+    const selection = resolveWalletProvider(preference);
+
+    if (preference !== undefined && selection.provider === undefined) {
+      setNotice({ tone: "warning", message: selection.message });
+      return;
+    }
+
+    setConnecting(true);
+    setWallet((current) => ({ ...current, status: "connecting" }));
+
+    try {
+      const next = await connectFreighterWallet(config.defaultNetwork);
+      setWallet(next);
+
+      if (next.status === "connected" || next.status === "mismatch") {
+        saveWalletProviderPreference("freighter");
+      } else if (next.status === "unavailable") {
+        setNotice({ tone: "warning", message: next.error ?? "The wallet provider is unavailable." });
+      }
     setConnecting(true);
     setWallet((current) => ({ ...current, status: "connecting" }));
     try {
@@ -121,6 +160,14 @@ export function WalletStatus() {
   async function disconnect() {
     setNotice(undefined);
     setWallet(await disconnectWallet(config.defaultNetwork));
+  }
+
+  function forgetProvider() {
+    resetWalletProviderPreference();
+    setNotice({
+      message: "Saved wallet provider cleared. Choose a provider to connect again.",
+      tone: "success"
+    });
   }
 
   /**
@@ -220,6 +267,11 @@ export function WalletStatus() {
     );
   }
 
+  const savedProvider =
+    preference === undefined
+      ? undefined
+      : walletProviders.find((provider) => provider.id === preference);
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {wallet.status === "error" || wallet.status === "unavailable" ? (
@@ -232,6 +284,14 @@ export function WalletStatus() {
           role="status"
         >
           {notice.message}
+        </span>
+      ) : null}
+      {savedProvider ? (
+        <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+          Saved provider: {savedProvider.label}
+          <Button onClick={forgetProvider} type="button" variant="ghost">
+            Forget
+          </Button>
         </span>
       ) : null}
       <Button
@@ -247,6 +307,9 @@ export function WalletStatus() {
         )}
         {connecting ? "Connecting" : "Connect Freighter"}
       </Button>
+      <span aria-live="polite" className="sr-only" role="status">
+        {wallet.status === "connecting" ? "Connecting to the wallet." : "Wallet disconnected."}
+      </span>
     </div>
   );
 }

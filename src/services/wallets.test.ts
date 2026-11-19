@@ -7,10 +7,16 @@ import {
   describeWalletNetwork,
   describeWalletSessionChange,
   isNetworkMismatch,
+  loadWalletProviderPreference,
   mapAuthorizationErrorToOutcome,
   reconnectWallet,
+  resetWalletProviderPreference,
+  resolveWalletProvider,
+  saveWalletProviderPreference,
   revalidateWalletSession,
   switchWalletNetwork,
+  walletProviderPreferenceStorageKey,
+  walletProviders,
   type WalletConnectionState,
   type WalletOutcome
 } from "./wallets";
@@ -331,6 +337,70 @@ describe("wallet service", () => {
   });
 });
 
+describe("wallet provider preference", () => {
+  class MockStorage {
+    private data = new Map<string, string>();
+
+    getItem(key: string) {
+      return this.data.get(key) ?? null;
+    }
+
+    removeItem(key: string) {
+      this.data.delete(key);
+    }
+
+    setItem(key: string, value: string) {
+      this.data.set(key, value);
+    }
+  }
+
+  it("persists only the provider identifier, never account or authorization data", () => {
+    const storage = new MockStorage();
+    saveWalletProviderPreference("freighter", storage);
+
+    const raw = storage.getItem(walletProviderPreferenceStorageKey);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw ?? "{}")).toEqual({ providerId: "freighter", version: 1 });
+    expect(raw).not.toContain(account);
+    expect(loadWalletProviderPreference(storage)).toBe("freighter");
+  });
+
+  it("returns undefined for malformed or unknown saved values", () => {
+    const storage = new MockStorage();
+
+    storage.setItem(walletProviderPreferenceStorageKey, "not-json");
+    expect(loadWalletProviderPreference(storage)).toBeUndefined();
+
+    storage.setItem(walletProviderPreferenceStorageKey, JSON.stringify({ providerId: "other" }));
+    expect(loadWalletProviderPreference(storage)).toBeUndefined();
+  });
+
+  it("resolves an available saved provider", () => {
+    expect(resolveWalletProvider("freighter")).toMatchObject({
+      provider: walletProviders[0],
+      requiresSelection: false
+    });
+  });
+
+  it("requires a new selection when the saved provider is unavailable", () => {
+    expect(resolveWalletProvider("freighter", [])).toMatchObject({
+      requiresSelection: true
+    });
+    expect(resolveWalletProvider("freighter", []).provider).toBeUndefined();
+  });
+
+  it("requires a selection when no preference is saved", () => {
+    expect(resolveWalletProvider(undefined)).toMatchObject({ requiresSelection: true });
+  });
+
+  it("resets the saved preference", () => {
+    const storage = new MockStorage();
+    saveWalletProviderPreference("freighter", storage);
+
+    resetWalletProviderPreference(storage);
+
+    expect(storage.getItem(walletProviderPreferenceStorageKey)).toBeNull();
+    expect(loadWalletProviderPreference(storage)).toBeUndefined();
 describe("wallet session revalidation", () => {
   const connected: WalletConnectionState = {
     actualNetwork: "stellar:testnet",

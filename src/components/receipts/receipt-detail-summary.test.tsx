@@ -19,6 +19,12 @@ vi.mock("@/services/payments", () => ({
       return false;
     }
     return /^[a-f0-9]{64}$/i.test(hash);
+  }),
+  isSyntheticTransactionId: vi.fn((identifier: string | null | undefined) => {
+    if (!identifier || typeof identifier !== "string") {
+      return false;
+    }
+    return !/^[a-f0-9]{64}$/i.test(identifier);
   })
 }));
 

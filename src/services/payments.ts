@@ -282,6 +282,27 @@ export function explorerTransactionUrl(
   return `${getNetworkConfig(network).explorerUrl}/tx/${transactionHash}`;
 }
 
+/**
+ * Returns the ledger a receipt is confirmed at, and only when the receipt is
+ * finalized and carries a positive integer ledger.
+ *
+ * This is the single source of truth for balance refresh keys: a pending or
+ * failed receipt never triggers a ledger-aware refresh.
+ */
+export function confirmedReceiptLedger(
+  receipt: Pick<Receipt, "ledger" | "status">
+): number | undefined {
+  if (receipt.status !== "finalized") {
+    return undefined;
+  }
+
+  const ledger = receipt.ledger;
+
+  return typeof ledger === "number" && Number.isInteger(ledger) && ledger > 0
+    ? ledger
+    : undefined;
+}
+
 export function formatPaymentAmount(amount: string, assetCode: string) {
   const value = Number(amount);
 

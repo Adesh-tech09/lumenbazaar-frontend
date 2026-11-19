@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { TelemetryProvider } from "@/app/telemetry-context";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 import { MotionProvider } from "@/hooks/motion-context";
 import { NetworkStatusProvider } from "@/components/layout/network-status-provider";
 import { SellerSessionProvider } from "@/components/seller/seller-session-provider";
@@ -15,13 +16,14 @@ import {
   NoOpSink,
   type TelemetryService
 } from "@/services/telemetry";
+import type { ConsentStatus } from "@/services/telemetry/types";
 
 function initializeTelemetry(): TelemetryService {
   const config = loadRuntimeConfig();
   const enabled = config.features.enableTelemetry;
 
   // Determine consent status
-  let consentStatus = "disabled_by_config";
+  let consentStatus: ConsentStatus = "disabled_by_config";
   if (enabled) {
     // For now, we don't have explicit user consent UI, so if config enables it, we enable it
     consentStatus = "enabled";
@@ -33,7 +35,7 @@ function initializeTelemetry(): TelemetryService {
 
   const telemetryService = createTelemetryService({
     enabled,
-    consentStatus: consentStatus as any, // Type assertion since we control consentStatus
+    consentStatus,
     networkId: config.defaultNetwork,
     sink
   });
@@ -48,7 +50,7 @@ function initializeTelemetry(): TelemetryService {
     data: {
       type: "app_initialized",
       telemetryEnabled: enabled,
-      consentStatus: consentStatus as any
+      consentStatus
     }
   });
 
@@ -75,13 +77,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MotionProvider>
+      <ThemeProvider>
+        <MotionProvider>
         <NetworkStatusProvider>
           <TelemetryProvider service={telemetryService}>
             <SellerSessionProvider>{children}</SellerSessionProvider>
           </TelemetryProvider>
         </NetworkStatusProvider>
-      </MotionProvider>
+        </MotionProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

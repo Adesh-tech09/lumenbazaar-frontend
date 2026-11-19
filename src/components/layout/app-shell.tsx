@@ -15,6 +15,7 @@ import Link from "next/link";
 import { getNetworkConfig } from "@/config/networks";
 import { loadRuntimeConfig } from "@/config/runtime";
 import { NetworkStatusBanner } from "@/components/layout/network-status-banner";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { WalletStatus } from "@/components/wallet/wallet-status";
 
 const navItems = [
@@ -58,6 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   ? "Demo data"
                   : `${config.environment} mode / ${network.label}`}
               </div>
+              <ThemeToggle />
               <WalletStatus />
             </div>
           </div>

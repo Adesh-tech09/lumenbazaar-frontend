@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 
 
 import { ErrorState, LoadingState } from "@/components/ui/surfaces";
-import { apiClient } from "@/services/api";
+import { apiClient } from "@/services/api/client";
 import { normalizeUiError } from "@/services/ui-state";
 
 import { ReceiptDetailSummary } from "./receipt-detail-summary";
@@ -52,6 +52,10 @@ export function ReceiptDetailPage({ receiptId }: { receiptId: string }) {
         />
       </div>
     );
+  }
+
+  if (data === undefined) {
+    return <LoadingState label="Loading receipt details" />;
   }
 
   return (

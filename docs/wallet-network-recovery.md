@@ -112,3 +112,17 @@ account or network it no longer holds. Every listener is removed when the compon
   notice, and listener cleanup.
 - `src/services/x402/authorization.test.ts` covers the blocked signing paths for a mismatched and
   for an unverifiable wallet network.
+
+## Saved wallet provider
+
+The wallet provider preference is stored under
+`lumenbazaar.wallet.provider.v1` as `{ "providerId": "freighter", "version": 1 }`.
+Only the provider identifier is persisted: no account address, authorization
+grant, signature, or session is written to storage.
+
+- A saved provider that is still available is reused after a safe session
+  expiry, so the user does not have to choose again.
+- A saved provider that is unavailable clears the auto-approval path and asks
+  the user to choose a provider instead.
+- **Forget** removes the saved preference and returns the next connection to the
+  provider-choice state.

@@ -5,11 +5,14 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { explorerTransactionUrl, isValidTransactionHash, isSyntheticTransactionId } from "@/services/payments";
 import type { Receipt } from "@/services/api/schemas";
 
+import { ReceiptSharePanel } from "./receipt-share-panel";
+
 type ReceiptDetailSummaryProps = {
+  headingRef?: React.Ref<HTMLHeadingElement>;
   receipt: Receipt;
 };
 
-export function ReceiptDetailSummary({ receipt }: ReceiptDetailSummaryProps) {
+export function ReceiptDetailSummary({ headingRef, receipt }: ReceiptDetailSummaryProps) {
   const isFinalized = receipt.status === "finalized";
   const isFailed = receipt.status === "failed";
   const isPending = receipt.status === "pending";
@@ -18,6 +21,10 @@ export function ReceiptDetailSummary({ receipt }: ReceiptDetailSummaryProps) {
 
   return (
     <div className="space-y-5">
+      <h2 className="text-xl font-semibold text-slate-950" ref={headingRef} tabIndex={-1}>
+        Receipt summary
+      </h2>
+
       <div className="flex flex-wrap gap-2">
         <Badge tone={statusTone}>{receipt.status}</Badge>
         <Badge tone={receipt.network === "stellar:testnet" ? "warning" : "neutral"}>
@@ -26,6 +33,8 @@ export function ReceiptDetailSummary({ receipt }: ReceiptDetailSummaryProps) {
         {receipt.resourceId && <Badge tone="info">Has resource</Badge>}
         {receipt.sellerId && <Badge tone="info">Has seller</Badge>}
       </div>
+
+      <ReceiptSharePanel receipt={receipt} />
 
       <Card>
         <CardHeader>
@@ -108,7 +117,7 @@ export function ReceiptDetailSummary({ receipt }: ReceiptDetailSummaryProps) {
             <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="font-medium text-amber-900">This is test or simulation data, not a real on-chain transaction.</p>
               <p className="mt-1 text-amber-800">
-                Synthetic identifiers like "<code className="font-mono">{receipt.transactionHash}</code>" cannot be verified on the Stellar explorer.
+                Synthetic identifiers like &quot;<code className="font-mono">{receipt.transactionHash}</code>&quot; cannot be verified on the Stellar explorer.
               </p>
             </div>
           </CardBody>

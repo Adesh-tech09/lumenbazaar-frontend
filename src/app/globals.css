@@ -11,6 +11,13 @@
   --accent: #2563eb;
   --warning: #b45309;
   --danger: #b42318;
+  --focus-ring: #2563eb;
+  --on-brand: #ffffff;
+
+  /* Data visualisation tokens, shared by metrics and status tables */
+  --data-viz-positive: #047857;
+  --data-viz-negative: #b42318;
+  --data-viz-neutral: #475467;
 
   /* Motion tokens - used by interactive components */
   --motion-duration-fast: 150ms;
@@ -22,6 +29,135 @@
   /* Animation tokens */
   --motion-enable-transitions: 1;
   --motion-enable-animations: 1;
+}
+
+/*
+ * High-contrast theme.
+ *
+ * Applied by ThemeProvider through `data-theme` on <html>. Tokens target
+ * WCAG AAA contrast against the high-contrast background (#000): body text
+ * and borders are #fff (21:1), links/brand #7dd3fc (about 12:1), and data
+ * visualisation colours stay above 9:1.
+ */
+[data-theme="high-contrast"] {
+  --background: #000000;
+  --foreground: #ffffff;
+  --muted: #e5e7eb;
+  --panel: #000000;
+  --border: #ffffff;
+  --brand: #7dd3fc;
+  --brand-dark: #bae6fd;
+  --accent: #fde68a;
+  --warning: #fde68a;
+  --danger: #fca5a5;
+  --focus-ring: #fde68a;
+  --on-brand: #000000;
+
+  --data-viz-positive: #a7f3d0;
+  --data-viz-negative: #fecaca;
+  --data-viz-neutral: #e5e7eb;
+
+  color-scheme: dark;
+}
+
+[data-theme="high-contrast"] body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+[data-theme="high-contrast"] a {
+  text-decoration: underline;
+}
+
+[data-theme="high-contrast"] :focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Shared component surfaces: white/slate panels become black with strong borders. */
+[data-theme="high-contrast"] [class~="bg-white"],
+[data-theme="high-contrast"] [class~="bg-slate-50"],
+[data-theme="high-contrast"] [class~="bg-slate-100"] {
+  background-color: var(--panel) !important;
+}
+
+[data-theme="high-contrast"] [class~="border-slate-200"],
+[data-theme="high-contrast"] [class~="border-slate-300"] {
+  border-color: var(--border) !important;
+}
+
+[data-theme="high-contrast"] [class~="text-slate-950"],
+[data-theme="high-contrast"] [class~="text-slate-900"],
+[data-theme="high-contrast"] [class~="text-slate-700"],
+[data-theme="high-contrast"] [class~="text-slate-600"],
+[data-theme="high-contrast"] [class~="text-slate-500"],
+[data-theme="high-contrast"] [class~="text-slate-400"] {
+  color: var(--foreground) !important;
+}
+
+/* Brand and danger actions keep a visible fill with dark text on it. */
+[data-theme="high-contrast"] [class~="bg-teal-700"] {
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+[data-theme="high-contrast"] [class~="bg-red-700"] {
+  background-color: var(--danger) !important;
+  border-color: var(--danger) !important;
+  color: var(--on-brand) !important;
+}
+
+/* Status badges and inline notices. */
+[data-theme="high-contrast"] [class~="bg-emerald-50"],
+[data-theme="high-contrast"] [class~="bg-blue-50"],
+[data-theme="high-contrast"] [class~="bg-amber-50"],
+[data-theme="high-contrast"] [class~="bg-red-50"] {
+  background-color: var(--panel) !important;
+}
+
+[data-theme="high-contrast"] [class~="border-emerald-200"],
+[data-theme="high-contrast"] [class~="text-emerald-700"],
+[data-theme="high-contrast"] [class~="text-emerald-800"] {
+  border-color: var(--data-viz-positive) !important;
+  color: var(--data-viz-positive) !important;
+}
+
+[data-theme="high-contrast"] [class~="border-blue-200"],
+[data-theme="high-contrast"] [class~="text-blue-600"],
+[data-theme="high-contrast"] [class~="text-blue-700"] {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+}
+
+[data-theme="high-contrast"] [class~="border-amber-200"],
+[data-theme="high-contrast"] [class~="text-amber-700"],
+[data-theme="high-contrast"] [class~="text-amber-800"] {
+  border-color: var(--warning) !important;
+  color: var(--warning) !important;
+}
+
+[data-theme="high-contrast"] [class~="border-red-200"],
+[data-theme="high-contrast"] [class~="text-red-700"] {
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+[data-theme="high-contrast"] [class~="text-teal-700"] {
+  color: var(--brand) !important;
+}
+
+/* Data visualisations consume the shared tokens. */
+[data-theme="high-contrast"] [data-viz="positive"] {
+  color: var(--data-viz-positive);
+}
+
+[data-theme="high-contrast"] [data-viz="negative"] {
+  color: var(--data-viz-negative);
+}
+
+[data-theme="high-contrast"] [data-viz="neutral"] {
+  color: var(--data-viz-neutral);
 }
 
 * {
