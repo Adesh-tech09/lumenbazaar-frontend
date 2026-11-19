@@ -30,8 +30,10 @@
     "security:install-hooks": "git config core.hooksPath .githooks",
     "security:malware-scan": "node scripts/security/scan-malware.mjs",
     "security:malware-test": "node --test scripts/security/scan-malware.fixtures.mjs",
+    "performance:check": "node scripts/performance-budgets.mjs",
+    "performance:update-budgets": "node scripts/performance-budgets.mjs --update",
     "format:check": "prettier --check .",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm performance:check"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "2.7.1",
