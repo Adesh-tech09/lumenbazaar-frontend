@@ -11,6 +11,17 @@
   --accent: #2563eb;
   --warning: #b45309;
   --danger: #b42318;
+
+  /* Motion tokens - used by interactive components */
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 300ms;
+  --motion-duration-slow: 500ms;
+  --motion-easing-ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-easing-ease-in-out: cubic-bezier(0.4, 0, 0.6, 1);
+
+  /* Animation tokens */
+  --motion-enable-transitions: 1;
+  --motion-enable-animations: 1;
 }
 
 * {
@@ -41,4 +52,20 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-enable-transitions: 0;
+    --motion-enable-animations: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

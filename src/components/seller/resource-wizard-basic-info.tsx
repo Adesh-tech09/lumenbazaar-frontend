@@ -85,7 +85,7 @@ export function ResourceWizardBasicInfo({
                 <button
                   key={type}
                   onClick={() => onUpdate({ type: type as ResourceType })}
-                  className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium transition-colors duration-[var(--motion-duration-base)] ${
                     draft.type === type
                       ? "border-teal-600 bg-teal-50 text-teal-700"
                       : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
@@ -107,7 +107,7 @@ export function ResourceWizardBasicInfo({
               maxLength={120}
               value={draft.name}
               onChange={(e) => onUpdate({ name: e.target.value })}
-              className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+              className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors duration-[var(--motion-duration-base)] ${
                 errors.name
                   ? "border-red-600 focus:ring-red-100"
                   : "border-slate-300 focus:ring-teal-100"
@@ -126,7 +126,7 @@ export function ResourceWizardBasicInfo({
               maxLength={1000}
               value={draft.description}
               onChange={(e) => onUpdate({ description: e.target.value })}
-              className={`min-h-28 w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+              className={`min-h-28 w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors duration-[var(--motion-duration-base)] ${
                 errors.description
                   ? "border-red-600 focus:ring-red-100"
                   : "border-slate-300 focus:ring-teal-100"
@@ -147,7 +147,7 @@ export function ResourceWizardBasicInfo({
               placeholder="https://example.com"
               value={draft.url}
               onChange={(e) => onUpdate({ url: e.target.value })}
-              className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+              className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors duration-[var(--motion-duration-base)] ${
                 errors.url
                   ? "border-red-600 focus:ring-red-100"
                   : "border-slate-300 focus:ring-teal-100"
@@ -167,7 +167,7 @@ export function ResourceWizardBasicInfo({
                   placeholder="/weather/{city}"
                   value={draft.routeTemplate}
                   onChange={(e) => onUpdate({ routeTemplate: e.target.value })}
-                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors duration-[var(--motion-duration-base)] ${
                     errors.routeTemplate
                       ? "border-red-600 focus:ring-red-100"
                       : "border-slate-300 focus:ring-teal-100"
@@ -184,7 +184,7 @@ export function ResourceWizardBasicInfo({
                   placeholder="mcp://server-name/tool-name"
                   value={draft.routeTemplate}
                   onChange={(e) => onUpdate({ routeTemplate: e.target.value })}
-                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors duration-[var(--motion-duration-base)] ${
                     errors.routeTemplate
                       ? "border-red-600 focus:ring-red-100"
                       : "border-slate-300 focus:ring-teal-100"
