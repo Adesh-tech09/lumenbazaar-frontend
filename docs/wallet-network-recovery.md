@@ -87,6 +87,18 @@ its own, and it never reports a switch that it could not verify.
 - The expected and the current network are rendered as a description list, so they are exposed as
   terms and definitions rather than as loose text.
 
+## Stale sessions in restored tabs
+
+A tab restored from the back/forward cache can still show a wallet that changed while the page
+was hidden. `WalletStatus` re-reads the wallet on `visibilitychange`, `pageshow`, `focus`, and on
+the `freighter:accountChanged`, `freighter:networkChanged`, and `stellar:walletChanged` provider
+events. `revalidateWalletSession` compares the session the tab believes it has with the state the
+wallet reports and returns a distinct change: `account_changed`, `network_changed`,
+`network_unverified`, `disconnected`, `unavailable`, or `unchanged`. Only `unchanged` with a
+`connected` wallet can authorize payments, and `authorizePaymentChallenge` independently re-reads
+the account and network immediately before signing, so a stale tab cannot sign a payment for an
+account or network it no longer holds. Every listener is removed when the component unmounts.
+
 ## Coverage
 
 - `src/config/networks.test.ts` covers passphrase resolution, unknown passphrases, and network
@@ -96,7 +108,8 @@ its own, and it never reports a switch that it could not verify.
 - `src/components/wallet/wallet-network-recovery.test.tsx` covers the rendered networks, the
   keyboard reachable actions, the live region, and the manual switch steps.
 - `src/components/wallet/wallet-status.test.tsx` covers the recovery flow end to end from the
-  connect action.
+  connect action, the stale-session revalidation on tab restore, the distinct account-change
+  notice, and listener cleanup.
 - `src/services/x402/authorization.test.ts` covers the blocked signing paths for a mismatched and
   for an unverifiable wallet network.
 

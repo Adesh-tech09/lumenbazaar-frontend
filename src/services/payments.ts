@@ -31,10 +31,14 @@ export type PaymentActivity = {
 
 export type PaymentActivityFilters = {
   asset?: string;
+  assets?: string[];
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   network?: NetworkId;
   resourceType?: ResourceType;
   sellerId?: string;
+  sellerIds?: string[];
   status?: PaymentActivityStatus;
 };
 
@@ -163,16 +167,27 @@ export function loadPaymentActivity(
     }))
     .filter((activity) => {
       const status = activity.settlement?.status ?? activity.attempt.status;
+      const createdDate = activity.attempt.createdAt.slice(0, 10);
 
       return (
         (filters.sellerId === undefined || activity.attempt.sellerId === filters.sellerId) &&
+        (filters.sellerIds === undefined ||
+          filters.sellerIds.length === 0 ||
+          filters.sellerIds.includes(activity.attempt.sellerId)) &&
         (filters.status === undefined ||
           status === filters.status ||
           activity.attempt.status === filters.status) &&
         (filters.network === undefined || activity.attempt.network === filters.network) &&
         (filters.date === undefined || sameUtcDate(activity.attempt.createdAt, filters.date)) &&
+        (filters.dateFrom === undefined || createdDate >= filters.dateFrom) &&
+        (filters.dateTo === undefined || createdDate <= filters.dateTo) &&
         (filters.asset === undefined ||
           activity.attempt.assetCode.toLowerCase() === filters.asset.toLowerCase()) &&
+        (filters.assets === undefined ||
+          filters.assets.length === 0 ||
+          filters.assets.some(
+            (asset) => asset.toLowerCase() === activity.attempt.assetCode.toLowerCase()
+          )) &&
         (filters.resourceType === undefined || activity.resource?.type === filters.resourceType)
       );
     })
@@ -234,7 +249,11 @@ export function isSyntheticTransactionId(identifier: string | null | undefined):
   }
 
   // Check for known synthetic prefixes
-  if (identifier.startsWith("upto-") || identifier.startsWith("exact-") || identifier.startsWith("playground_")) {
+  if (
+    identifier.startsWith("upto-") ||
+    identifier.startsWith("exact-") ||
+    identifier.startsWith("playground_")
+  ) {
     return true;
   }
 
@@ -339,7 +358,8 @@ export function sanitizeReceiptForExport(activity: PaymentActivity): ReceiptExpo
     failure_reason: activity.attempt.failureReason,
     receipt_id: activity.receipt?.id ?? null,
     receipt_status: activity.receipt?.status ?? null,
-    transaction_hash: activity.settlement?.transactionHash ?? activity.receipt?.transactionHash ?? null,
+    transaction_hash:
+      activity.settlement?.transactionHash ?? activity.receipt?.transactionHash ?? null,
     correlation_id: activity.receipt?.correlationId ?? null,
     receipt_created_at: activity.receipt?.createdAt ?? null,
     settlement_id: activity.settlement?.id ?? null,
@@ -441,7 +461,7 @@ export function exportToCSV(
   const lines: string[] = [];
 
   // Metadata block (human-readable, not machine-parseable as data)
-  lines.push('Metadata,,');
+  lines.push("Metadata,,");
   lines.push(`exportTimestamp,${escapeCSVValue(metadata.exportTimestamp)},`);
   lines.push(`evidenceSource,${escapeCSVValue(metadata.evidenceSource)},`);
 
@@ -457,30 +477,30 @@ export function exportToCSV(
   lines.push(`pageInfo_recordsOnThisPage,${metadata.pageInfo.recordsOnThisPage},`);
 
   // Empty line before data
-  lines.push(',,');
+  lines.push(",,");
 
   // Header row (column names from ReceiptExportRecord keys)
   const headers: (keyof ReceiptExportRecord)[] = [
-    'attempt_id',
-    'attempt_created_at',
-    'network',
-    'asset_code',
-    'amount',
-    'status',
-    'seller_id',
-    'resource_id',
-    'failure_code',
-    'failure_reason',
-    'receipt_id',
-    'receipt_status',
-    'transaction_hash',
-    'correlation_id',
-    'receipt_created_at',
-    'settlement_id',
-    'ledger'
+    "attempt_id",
+    "attempt_created_at",
+    "network",
+    "asset_code",
+    "amount",
+    "status",
+    "seller_id",
+    "resource_id",
+    "failure_code",
+    "failure_reason",
+    "receipt_id",
+    "receipt_status",
+    "transaction_hash",
+    "correlation_id",
+    "receipt_created_at",
+    "settlement_id",
+    "ledger"
   ];
 
-  lines.push(headers.map(escapeCSVValue).join(','));
+  lines.push(headers.map(escapeCSVValue).join(","));
 
   // Data rows
   sanitized.forEach((record) => {
@@ -488,12 +508,12 @@ export function exportToCSV(
       const value = record[header];
       return escapeCSVValue(value);
     });
-    lines.push(row.join(','));
+    lines.push(row.join(","));
   });
 
   // Combine with UTF-8 BOM
-  const csv = lines.join('\n');
-  const bom = '\ufeff'; // UTF-8 BOM
+  const csv = lines.join("\n");
+  const bom = "\ufeff"; // UTF-8 BOM
 
   return bom + csv;
 }

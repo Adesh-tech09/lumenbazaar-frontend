@@ -2,6 +2,7 @@
 
 import { LogOut, PlugZap, Wallet } from "lucide-react";
 import { useSyncExternalStore, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,18 @@ import {
   switchWalletNetwork,
   walletProviders,
   type WalletConnectionState
+  revalidateWalletSession,
+  switchWalletNetwork,
+  type WalletConnectionState,
+  type WalletSessionRevalidation
 } from "@/services/wallets";
+
+/** Provider events a host or wallet adapter can dispatch after a wallet change. */
+const walletProviderEvents = [
+  "freighter:accountChanged",
+  "freighter:networkChanged",
+  "stellar:walletChanged"
+] as const;
 
 export function WalletStatus() {
   const config = loadRuntimeConfig();
@@ -40,6 +52,69 @@ export function WalletStatus() {
   });
   const [busy, setBusy] = useState<WalletRecoveryBusyState>(null);
   const [notice, setNotice] = useState<WalletRecoveryNotice | undefined>(undefined);
+  const walletRef = useRef(wallet);
+
+  useEffect(() => {
+    walletRef.current = wallet;
+  }, [wallet]);
+
+  // A restored tab can show a session the wallet no longer has. Re-read the
+  // wallet whenever the tab becomes visible again, is restored, or the provider
+  // reports a change, and keep listening only while this component is mounted.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function revalidate() {
+      const current = walletRef.current;
+
+      if (document.visibilityState === "hidden") return;
+      if (
+        current.status === "disconnected" ||
+        current.status === "connecting" ||
+        current.status === "error" ||
+        current.status === "unavailable"
+      ) {
+        return;
+      }
+
+      const result = await revalidateWalletSession(current, config.defaultNetwork);
+
+      if (cancelled) return;
+
+      setWallet(result.wallet);
+
+      const changeNotice = noticeForSessionChange(result);
+
+      if (changeNotice !== undefined) {
+        setNotice(changeNotice);
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") void revalidate();
+    }
+
+    function handleProviderChange() {
+      void revalidate();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleProviderChange);
+    window.addEventListener("pageshow", handleProviderChange);
+    for (const eventName of walletProviderEvents) {
+      window.addEventListener(eventName, handleProviderChange);
+    }
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleProviderChange);
+      window.removeEventListener("pageshow", handleProviderChange);
+      for (const eventName of walletProviderEvents) {
+        window.removeEventListener(eventName, handleProviderChange);
+      }
+    };
+  }, [config.defaultNetwork]);
 
   // Storage is external state; the server snapshot stays empty and the browser
   // snapshot picks up the saved provider without an extra state write.
@@ -73,6 +148,10 @@ export function WalletStatus() {
       } else if (next.status === "unavailable") {
         setNotice({ tone: "warning", message: next.error ?? "The wallet provider is unavailable." });
       }
+    setConnecting(true);
+    setWallet((current) => ({ ...current, status: "connecting" }));
+    try {
+      setWallet(await connectFreighterWallet(config.defaultNetwork));
     } finally {
       setConnecting(false);
     }
@@ -233,4 +312,44 @@ export function WalletStatus() {
       </span>
     </div>
   );
+}
+
+/**
+ * Distinct recovery copy for each way a restored session can be stale. Account
+ * and network changes are never collapsed into one message.
+ */
+function noticeForSessionChange(
+  result: WalletSessionRevalidation
+): WalletRecoveryNotice | undefined {
+  switch (result.change) {
+    case "account_changed":
+      return {
+        message:
+          "The active wallet account changed. Reconnect and review the account before authorizing payments.",
+        tone: "danger"
+      };
+    case "network_changed":
+      return {
+        message: `The wallet network changed to ${describeWalletNetwork(result.wallet)}. Payments require ${networkLabel(result.wallet.expectedNetwork)}.`,
+        tone: "warning"
+      };
+    case "network_unverified":
+      return {
+        message:
+          "The wallet did not report its network, so payments stay blocked until it can be verified.",
+        tone: "warning"
+      };
+    case "disconnected":
+      return {
+        message: "The wallet session is no longer active. Reconnect to continue.",
+        tone: "warning"
+      };
+    case "unavailable":
+      return {
+        message: "The wallet could not be re-read. Payments stay blocked until it reconnects.",
+        tone: "danger"
+      };
+    case "unchanged":
+      return undefined;
+  }
 }

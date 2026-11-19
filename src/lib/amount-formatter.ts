@@ -78,10 +78,7 @@ function isValidDecimals(decimals: number): boolean {
  * //   decimals: 6
  * // }
  */
-export function formatAtomicAmount(
-  atomicAmount: string,
-  asset: FormattableAsset
-): FormattedAmount {
+export function formatAtomicAmount(atomicAmount: string, asset: FormattableAsset): FormattedAmount {
   // Validate input: atomicAmount must be a valid positive integer
   if (!isValidAtomicAmount(atomicAmount)) {
     throw new Error(
@@ -91,9 +88,7 @@ export function formatAtomicAmount(
 
   // Validate decimals are within bounds
   if (!isValidDecimals(asset.decimals)) {
-    throw new Error(
-      `Invalid decimals: ${asset.decimals}. Must be an integer between 0 and 7.`
-    );
+    throw new Error(`Invalid decimals: ${asset.decimals}. Must be an integer between 0 and 7.`);
   }
 
   // Use BigInt for safe arithmetic (no precision loss)
@@ -112,9 +107,7 @@ export function formatAtomicAmount(
 
   // Combine parts
   const formatted =
-    fractionalStr.length > 0
-      ? `${integerPart}.${fractionalStr}`
-      : integerPart.toString();
+    fractionalStr.length > 0 ? `${integerPart}.${fractionalStr}` : integerPart.toString();
 
   return {
     atomic: atomicAmount,
@@ -123,6 +116,65 @@ export function formatAtomicAmount(
     formatted,
     symbol: asset.symbol
   };
+}
+
+/**
+ * Normalizes a decimal amount string (e.g. "0.0500000") without losing precision.
+ *
+ * Throws when the value is not a plain non-negative decimal number.
+ */
+export function normalizeDecimalAmount(value: string): string {
+  const parsed = parseDecimalAmount(value);
+  return formatScaledAmount(parsed.units, parsed.scale);
+}
+
+/**
+ * Sums decimal amount strings losslessly using BigInt scaling.
+ *
+ * Values may use different numbers of decimal places; the result keeps every
+ * significant digit and trims only trailing fractional zeros. An empty list
+ * sums to "0".
+ *
+ * @throws Error when any value is not a plain non-negative decimal number
+ */
+export function sumDecimalAmounts(values: readonly string[]): string {
+  const parsed = values.map(parseDecimalAmount);
+  if (parsed.length === 0) {
+    return "0";
+  }
+
+  const scale = parsed.reduce((max, value) => Math.max(max, value.scale), 0);
+  const total = parsed.reduce(
+    (sum, value) => sum + value.units * 10n ** BigInt(scale - value.scale),
+    0n
+  );
+
+  return formatScaledAmount(total, scale);
+}
+
+function parseDecimalAmount(value: string): { scale: number; units: bigint } {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(value);
+
+  if (match === null) {
+    throw new Error(`Invalid decimal amount: "${value}". Must be a non-negative decimal number.`);
+  }
+
+  const whole = match[1] ?? "0";
+  const fraction = match[2] ?? "";
+
+  return { scale: fraction.length, units: BigInt(`${whole}${fraction}`) };
+}
+
+function formatScaledAmount(units: bigint, scale: number): string {
+  if (scale === 0) {
+    return units.toString();
+  }
+
+  const padded = units.toString().padStart(scale + 1, "0");
+  const whole = padded.slice(0, -scale);
+  const fraction = padded.slice(-scale).replace(/0+$/, "");
+
+  return fraction.length > 0 ? `${whole}.${fraction}` : whole;
 }
 
 /**

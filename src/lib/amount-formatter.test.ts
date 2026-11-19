@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAtomicAmount, tryFormatAmount, type FormattableAsset } from "./amount-formatter";
+import {
+  formatAtomicAmount,
+  normalizeDecimalAmount,
+  sumDecimalAmounts,
+  tryFormatAmount,
+  type FormattableAsset
+} from "./amount-formatter";
+
+describe("sumDecimalAmounts", () => {
+  it("sums zero values without precision loss", () => {
+    expect(sumDecimalAmounts([])).toBe("0");
+    expect(sumDecimalAmounts(["0", "0.0000000"])).toBe("0");
+  });
+
+  it("sums amounts with different decimal places exactly", () => {
+    expect(sumDecimalAmounts(["0.0500000", "1.5", "2"])).toBe("3.55");
+  });
+
+  it("sums values larger than the float64 safe integer range", () => {
+    expect(sumDecimalAmounts(["9007199254740992", "1"])).toBe("9007199254740993");
+  });
+
+  it("normalizes trailing zeros", () => {
+    expect(normalizeDecimalAmount("001.2300")).toBe("1.23");
+    expect(normalizeDecimalAmount("0.0000000")).toBe("0");
+  });
+
+  it("rejects malformed amounts instead of guessing", () => {
+    expect(() => sumDecimalAmounts(["1.2.3"])).toThrow(/Invalid decimal amount/);
+    expect(() => sumDecimalAmounts(["-1"])).toThrow(/Invalid decimal amount/);
+  });
+});
 
 describe("formatAtomicAmount", () => {
   const usdc: FormattableAsset = {
@@ -146,23 +177,17 @@ describe("formatAtomicAmount", () => {
   describe("invalid decimals", () => {
     it("throws on negative decimals", () => {
       const invalidAsset = { ...usdc, decimals: -1 };
-      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(
-        /Invalid decimals/
-      );
+      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(/Invalid decimals/);
     });
 
     it("throws on decimals > 7", () => {
       const invalidAsset = { ...usdc, decimals: 8 };
-      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(
-        /Invalid decimals/
-      );
+      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(/Invalid decimals/);
     });
 
     it("throws on non-integer decimals", () => {
       const invalidAsset = { ...usdc, decimals: 6.5 };
-      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(
-        /Invalid decimals/
-      );
+      expect(() => formatAtomicAmount("1000000", invalidAsset)).toThrow(/Invalid decimals/);
     });
   });
 
@@ -222,18 +247,12 @@ describe("formatAtomicAmount", () => {
 });
 
 describe("tryFormatAmount", () => {
-  const testnetUsdcContractId =
-    "CBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQE";
-  const testnetBrlContractId =
-    "CBQYB6MKFOPG7BWBT5H3KK43L2CQFWW5J2VJPWMVSWWFDMLZTFGZW7FY";
+  const testnetUsdcContractId = "CBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQE";
+  const testnetBrlContractId = "CBQYB6MKFOPG7BWBT5H3KK43L2CQFWW5J2VJPWMVSWWFDMLZTFGZW7FY";
 
   describe("valid formatting", () => {
     it("formats known testnet USDC asset", () => {
-      const result = tryFormatAmount(
-        "1234567",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("1234567", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).not.toBeNull();
       expect(result?.formatted).toBe("1.234567");
@@ -242,11 +261,7 @@ describe("tryFormatAmount", () => {
     });
 
     it("formats known testnet BRL asset", () => {
-      const result = tryFormatAmount(
-        "12345678",
-        testnetBrlContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("12345678", testnetBrlContractId, "stellar:testnet");
 
       expect(result).not.toBeNull();
       expect(result?.formatted).toBe("1.2345678");
@@ -257,53 +272,32 @@ describe("tryFormatAmount", () => {
 
   describe("fallback behavior", () => {
     it("returns null for unknown contract ID", () => {
-      const unknownContractId =
-        "CB256KDRXDO2FYJN3YBYZE5KCU46WIIE67DRP5T7HI45DRH2GM6YOJFS";
-      const result = tryFormatAmount(
-        "1234567",
-        unknownContractId,
-        "stellar:testnet"
-      );
+      const unknownContractId = "CB256KDRXDO2FYJN3YBYZE5KCU46WIIE67DRP5T7HI45DRH2GM6YOJFS";
+      const result = tryFormatAmount("1234567", unknownContractId, "stellar:testnet");
 
       expect(result).toBeNull();
     });
 
     it("returns null for invalid atomic amount", () => {
-      const result = tryFormatAmount(
-        "0",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("0", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).toBeNull();
     });
 
     it("returns null for negative amount", () => {
-      const result = tryFormatAmount(
-        "-1000000",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("-1000000", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).toBeNull();
     });
 
     it("returns null for amount with leading zeros", () => {
-      const result = tryFormatAmount(
-        "01234567",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("01234567", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).toBeNull();
     });
 
     it("returns null for malformed amount", () => {
-      const result = tryFormatAmount(
-        "123.456",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("123.456", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).toBeNull();
     });
@@ -312,18 +306,10 @@ describe("tryFormatAmount", () => {
   describe("network-specific assets", () => {
     it("does not cross networks", () => {
       // Testnet USDC contract
-      const testnetResult = tryFormatAmount(
-        "1000000",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const testnetResult = tryFormatAmount("1000000", testnetUsdcContractId, "stellar:testnet");
 
       // Same contract ID on pubnet should return null (not configured)
-      const pubnetResult = tryFormatAmount(
-        "1000000",
-        testnetUsdcContractId,
-        "stellar:pubnet"
-      );
+      const pubnetResult = tryFormatAmount("1000000", testnetUsdcContractId, "stellar:pubnet");
 
       expect(testnetResult).not.toBeNull();
       expect(pubnetResult).toBeNull();
@@ -332,11 +318,7 @@ describe("tryFormatAmount", () => {
 
   describe("edge cases", () => {
     it("formats amount 1 (minimum atomic unit)", () => {
-      const result = tryFormatAmount(
-        "1",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("1", testnetUsdcContractId, "stellar:testnet");
 
       expect(result).not.toBeNull();
       expect(result?.formatted).toBe("0.000001");
@@ -356,11 +338,7 @@ describe("tryFormatAmount", () => {
 
   describe("type safety", () => {
     it("returns FormattedAmount | null", () => {
-      const result = tryFormatAmount(
-        "1000000",
-        testnetUsdcContractId,
-        "stellar:testnet"
-      );
+      const result = tryFormatAmount("1000000", testnetUsdcContractId, "stellar:testnet");
 
       if (result !== null) {
         // TypeScript should allow these accesses

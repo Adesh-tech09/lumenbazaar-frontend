@@ -1,13 +1,24 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink, Filter, Loader2, ReceiptText, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Loader2,
+  ReceiptText,
+  X
+} from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { tryFormatAmount } from "@/lib/amount-formatter";
 import { exportToJSON, exportToCSV } from "@/services/payments";
-import { generateExportFileName, triggerExport } from "@/lib/export-utils";
+import { triggerExport } from "@/lib/export-utils";
+import { DiagnosticBundlePanel } from "@/components/transactions/diagnostic-bundle-panel";
+import { SavedViews } from "@/components/transactions/saved-views";
+import { TransactionDetailPanel } from "@/components/transactions/transaction-detail-panel";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +41,14 @@ import {
   type PaymentActivityStatus
 } from "@/services/payments";
 import { getVisibleColumns } from "@/services/column-preferences";
+import {
+  parseTransactionFilterParams,
+  toPaymentActivityFilters,
+  validateTransactionFilters,
+  withTransactionFilters,
+  type TransactionFilters
+} from "@/services/transaction-filters";
+import { withTransactionSelection } from "@/services/transaction-detail";
 
 const allStatuses: Array<PaymentActivityStatus | "all"> = [
   "all",
@@ -58,15 +77,25 @@ export function TransactionDashboard() {
   const mode = loadRuntimeConfig().environment;
   const demo = isDemoMode(mode);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const [initialFilters] = useState(
+    () => parseTransactionFilterParams(new URLSearchParams(searchParams.toString())).filters
+  );
 
-  const [network, setNetwork] = useState<NetworkId | "all">("all");
-  const [status, setStatus] = useState<PaymentActivityStatus | "all">("all");
-  const [asset, setAsset] = useState("all");
-  const [sellerId, setSellerId] = useState("all");
-  const [date, setDate] = useState("");
+  const [network, setNetwork] = useState<NetworkId | "all">(initialFilters.network ?? "all");
+  const [status, setStatus] = useState<PaymentActivityStatus | "all">(
+    initialFilters.status ?? "all"
+  );
+  const [selectedAssets, setSelectedAssets] = useState<string[]>(initialFilters.assets ?? []);
+  const [selectedSellers, setSelectedSellers] = useState<string[]>(initialFilters.sellers ?? []);
+  const [dateFrom, setDateFrom] = useState(initialFilters.dateFrom ?? "");
+  const [dateTo, setDateTo] = useState(initialFilters.dateTo ?? "");
   const [isExporting, setIsExporting] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState(
-    getVisibleColumns("transaction-table", transactionTableColumns.map((c) => c.id))
+    getVisibleColumns(
+      "transaction-table",
+      transactionTableColumns.map((c) => c.id)
+    )
   );
 
   const handleColumnsChange = (newVisibleColumns: string[]) => {
@@ -79,21 +108,31 @@ export function TransactionDashboard() {
     [demo, mode]
   );
 
-  // Build filters object
-  const paginationFilters = useMemo(
+  // Build and validate filters before any request is issued.
+  const filterInput = useMemo<TransactionFilters>(
     () => ({
-      ...(asset === "all" ? {} : { asset }),
-      ...(date === "" ? {} : { date }),
+      ...(selectedAssets.length > 0 ? { assets: selectedAssets } : {}),
+      ...(dateFrom === "" ? {} : { dateFrom }),
+      ...(dateTo === "" ? {} : { dateTo }),
       ...(network === "all" ? {} : { network }),
-      ...(sellerId === "all" ? {} : { sellerId }),
+      ...(selectedSellers.length > 0 ? { sellers: selectedSellers } : {}),
       ...(status === "all" ? {} : { status })
     }),
-    [asset, date, network, sellerId, status]
+    [dateFrom, dateTo, network, selectedAssets, selectedSellers, status]
+  );
+  const filterValidation = useMemo(() => validateTransactionFilters(filterInput), [filterInput]);
+  const validationErrors = filterValidation.success
+    ? []
+    : filterValidation.error.issues.map((issue) => issue.message);
+  const validFilters = filterValidation.success ? filterValidation.data : undefined;
+
+  const paginationFilters = useMemo(
+    () => (validFilters ? toPaymentActivityFilters(validFilters) : {}),
+    [validFilters]
   );
 
-  // Track previous filters to detect changes
-  const previousFiltersRef = useRef(paginationFilters);
-  const filtersChanged = JSON.stringify(previousFiltersRef.current) !== JSON.stringify(paginationFilters);
+  const filterSignature = JSON.stringify(paginationFilters);
+  const previousFilterSignatureRef = useRef(filterSignature);
 
   // Pagination hook for cursor-based navigation
   const {
@@ -107,6 +146,10 @@ export function TransactionDashboard() {
     resetPagination
   } = useCursorPagination({
     queryFn: async (cursor) => {
+      if (validFilters === undefined) {
+        return { items: [], nextCursor: undefined, previousCursor: undefined };
+      }
+
       const filtered = loadPaymentActivity(paginationFilters, mode);
       // In demo mode, implement simple cursor-based pagination
       const pageSize = 10;
@@ -123,8 +166,10 @@ export function TransactionDashboard() {
       }
 
       const items = allItems.slice(startIndex, startIndex + pageSize);
-      const nextCursor = startIndex + pageSize < allItems.length ? (startIndex + pageSize).toString() : undefined;
-      const previousCursor = startIndex > 0 ? Math.max(0, startIndex - pageSize).toString() : undefined;
+      const nextCursor =
+        startIndex + pageSize < allItems.length ? (startIndex + pageSize).toString() : undefined;
+      const previousCursor =
+        startIndex > 0 ? Math.max(0, startIndex - pageSize).toString() : undefined;
 
       return {
         items,
@@ -132,22 +177,25 @@ export function TransactionDashboard() {
         previousCursor
       };
     },
-    getKey: (item) => item.attempt.id,
-    urlSearchParams: searchParams as any
+    getKey: (item) => item.attempt.id
   });
 
-  // Reset pagination when filters change
-  if (filtersChanged) {
-    resetPagination();
-    previousFiltersRef.current = paginationFilters;
-  }
+  // Reset pagination when filters change, after the new filter set is committed.
+  useEffect(() => {
+    if (previousFilterSignatureRef.current === filterSignature) {
+      return;
+    }
 
-  const assets = useMemo(
+    previousFilterSignatureRef.current = filterSignature;
+    resetPagination();
+  }, [filterSignature, resetPagination]);
+
+  const assetOptions = useMemo(
     () => [...new Set(unfilteredActivity.map((item) => item.attempt.assetCode))],
     [unfilteredActivity]
   );
 
-  const sellers = useMemo(
+  const sellerOptions = useMemo(
     () => [
       ...new Map(
         unfilteredActivity.flatMap((item) =>
@@ -160,16 +208,59 @@ export function TransactionDashboard() {
 
   const loadedAt = unfilteredActivity[0]?.attempt.createdAt;
   const hasFilters =
-    network !== "all" || status !== "all" || asset !== "all" || sellerId !== "all" || date !== "";
+    network !== "all" ||
+    status !== "all" ||
+    selectedAssets.length > 0 ||
+    selectedSellers.length > 0 ||
+    dateFrom !== "" ||
+    dateTo !== "";
+
+  useEffect(() => {
+    if (!filterValidation.success) {
+      return;
+    }
+
+    const params = withTransactionFilters(
+      new URLSearchParams(window.location.search),
+      filterValidation.data
+    );
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  }, [filterValidation]);
 
   const handleClearFilters = useCallback(() => {
     setNetwork("all");
     setStatus("all");
-    setAsset("all");
-    setSellerId("all");
-    setDate("");
+    setSelectedAssets([]);
+    setSelectedSellers([]);
+    setDateFrom("");
+    setDateTo("");
     resetPagination();
   }, [resetPagination]);
+
+  const handleApplyView = useCallback(
+    (filters: TransactionFilters) => {
+      setNetwork(filters.network ?? "all");
+      setStatus(filters.status ?? "all");
+      setSelectedAssets(filters.assets ?? []);
+      setSelectedSellers(filters.sellers ?? []);
+      setDateFrom(filters.dateFrom ?? "");
+      setDateTo(filters.dateTo ?? "");
+      resetPagination();
+    },
+    [resetPagination]
+  );
+
+  const handleOpenTransaction = useCallback(
+    (transactionId: string) => {
+      const params = withTransactionSelection(
+        new URLSearchParams(window.location.search),
+        transactionId
+      );
+      router.replace(`/transactions?${params.toString()}`, { scroll: false });
+    },
+    [router]
+  );
 
   const handleExportJSON = useCallback(() => {
     try {
@@ -264,55 +355,90 @@ export function TransactionDashboard() {
               </select>
             </label>
 
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-slate-700">Asset</span>
-              <select
-                className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
-                onChange={(event) => setAsset(event.target.value)}
-                value={asset}
-              >
-                <option value="all">All assets</option>
-                {assets.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <fieldset className="space-y-1 text-sm">
+              <legend className="font-medium text-slate-700">Assets</legend>
+              <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto rounded-md border border-slate-300 bg-white p-2">
+                {assetOptions.length === 0 ? (
+                  <span className="text-xs text-slate-500">No assets available</span>
+                ) : (
+                  assetOptions.map((option) => (
+                    <label className="inline-flex items-center gap-2 text-sm" key={option}>
+                      <input
+                        checked={selectedAssets.includes(option)}
+                        onChange={(event) =>
+                          setSelectedAssets((current) =>
+                            event.target.checked
+                              ? [...current, option]
+                              : current.filter((value) => value !== option)
+                          )
+                        }
+                        type="checkbox"
+                      />
+                      {option}
+                    </label>
+                  ))
+                )}
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-1 text-sm">
+              <legend className="font-medium text-slate-700">Sellers</legend>
+              <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto rounded-md border border-slate-300 bg-white p-2">
+                {sellerOptions.length === 0 ? (
+                  <span className="text-xs text-slate-500">No sellers available</span>
+                ) : (
+                  sellerOptions.map((seller) => (
+                    <label className="inline-flex items-center gap-2 text-sm" key={seller.id}>
+                      <input
+                        checked={selectedSellers.includes(seller.id)}
+                        onChange={(event) =>
+                          setSelectedSellers((current) =>
+                            event.target.checked
+                              ? [...current, seller.id]
+                              : current.filter((value) => value !== seller.id)
+                          )
+                        }
+                        type="checkbox"
+                      />
+                      {seller.displayName}
+                    </label>
+                  ))
+                )}
+              </div>
+            </fieldset>
 
             <label className="space-y-1 text-sm">
-              <span className="font-medium text-slate-700">Seller</span>
-              <select
-                className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
-                onChange={(event) => setSellerId(event.target.value)}
-                value={sellerId}
-              >
-                <option value="all">All sellers</option>
-                {sellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-slate-700">Date</span>
+              <span className="font-medium text-slate-700">From date</span>
               <input
                 className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => setDateFrom(event.target.value)}
                 type="date"
-                value={date}
+                value={dateFrom}
               />
             </label>
 
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">To date</span>
+              <input
+                className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                onChange={(event) => setDateTo(event.target.value)}
+                type="date"
+                value={dateTo}
+              />
+            </label>
+
+            {validationErrors.length > 0 ? (
+              <p
+                className="text-sm font-medium text-red-700 md:col-span-2 xl:col-span-5"
+                role="alert"
+              >
+                {validationErrors[0]}
+              </p>
+            ) : null}
+
             {hasFilters ? (
               <div className="md:col-span-2 xl:col-span-5">
-                <Button
-                  onClick={handleClearFilters}
-                  type="button"
-                  variant="secondary"
-                >
+                <Button onClick={handleClearFilters} type="button" variant="secondary">
                   <X aria-hidden="true" className="h-4 w-4" />
                   Clear filters
                 </Button>
@@ -321,6 +447,10 @@ export function TransactionDashboard() {
           </CardBody>
         </Card>
 
+        <SavedViews filters={filterInput} onApply={handleApplyView} />
+
+        <DiagnosticBundlePanel filters={paginationFilters} />
+
         {/* Error state for pagination */}
         {error ? (
           <Card>
@@ -328,11 +458,7 @@ export function TransactionDashboard() {
               <div className="flex-1">
                 <p className="text-sm font-medium text-red-900">{error.message}</p>
               </div>
-              <Button
-                onClick={resetPagination}
-                size="sm"
-                variant="secondary"
-              >
+              <Button onClick={resetPagination} variant="secondary">
                 Start over
               </Button>
             </CardBody>
@@ -418,6 +544,7 @@ export function TransactionDashboard() {
                     <TransactionRow
                       activity={item}
                       key={item.attempt.id}
+                      onOpenTransaction={handleOpenTransaction}
                       visibleColumns={visibleColumns}
                     />
                   ))}
@@ -431,7 +558,6 @@ export function TransactionDashboard() {
                 onClick={previousPage}
                 disabled={!hasPreviousPage || isLoading}
                 variant="secondary"
-                size="sm"
                 aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -446,7 +572,6 @@ export function TransactionDashboard() {
                 onClick={nextPage}
                 disabled={!hasNextPage || isLoading}
                 variant="secondary"
-                size="sm"
                 aria-label="Next page"
               >
                 Next
@@ -455,18 +580,33 @@ export function TransactionDashboard() {
             </div>
           </Card>
         )}
+
+        <TransactionDetailPanel activities={unfilteredActivity} />
       </div>
     </>
   );
 }
 
-function TransactionRow({ activity, visibleColumns }: { activity: PaymentActivity; visibleColumns: string[] }) {
+function TransactionRow({
+  activity,
+  onOpenTransaction,
+  visibleColumns
+}: {
+  activity: PaymentActivity;
+  onOpenTransaction: (transactionId: string) => void;
+  visibleColumns: string[];
+}) {
   const status = paymentActivityStatus(activity);
   const transactionHash = activity.settlement?.transactionHash ?? activity.receipt?.transactionHash;
 
   // Format the amount using network-specific asset metadata
   const formattedAmount = useMemo(
-    () => tryFormatAmount(activity.attempt.amount, activity.attempt.assetCode, activity.attempt.network),
+    () =>
+      tryFormatAmount(
+        activity.attempt.amount,
+        activity.attempt.assetCode,
+        activity.attempt.network
+      ),
     [activity.attempt.amount, activity.attempt.assetCode, activity.attempt.network]
   );
 
@@ -478,6 +618,14 @@ function TransactionRow({ activity, visibleColumns }: { activity: PaymentActivit
           <p className="mt-1 break-all text-xs text-slate-500">
             {shortHash(activity.attempt.paymentHash)}
           </p>
+          <button
+            className="mt-2 inline-flex text-xs font-medium text-teal-700 hover:text-teal-900"
+            data-transaction-id={activity.attempt.id}
+            onClick={() => onOpenTransaction(activity.attempt.id)}
+            type="button"
+          >
+            View details
+          </button>
         </td>
       )}
       {visibleColumns.includes("seller") && (

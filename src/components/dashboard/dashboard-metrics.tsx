@@ -6,6 +6,7 @@ import { Activity, Database, Gauge, Store, WalletCards, type LucideIcon } from "
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
+import { SettlementTrends } from "@/components/dashboard/settlement-trends";
 import { queryKeys } from "@/services/api/query";
 import { formatDuration, loadDashboardSnapshot } from "@/services/dashboard";
 
@@ -167,6 +168,8 @@ export function DashboardMetrics() {
           </CardBody>
         </Card>
       </div>
+
+      <SettlementTrends />
     </div>
   );
 }

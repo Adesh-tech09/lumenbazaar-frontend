@@ -16,6 +16,20 @@ publishes a new version against the reviewed `updatedAt`.
 4. Publishing calls `saveResourceEdit`, which validates first and short-circuits unchanged
    drafts without a request.
 
+## Draft portability and unsaved changes
+
+New-resource drafts can be exported with **Export draft** and reloaded with **Import draft**.
+Files carry a `version` of `1`, an `exportedAt` timestamp, and an allowlisted `draft` object;
+session tokens, signed payloads, private keys, and other fields outside the draft schema are never
+exported or trusted on import. Imports are rejected when the file exceeds 64 KB, uses an unknown
+version, is not valid JSON, or fails draft validation.
+
+The wizard compares the draft with the version it was loaded from using
+`hasMeaningfulDraftChanges`, which ignores whitespace-only edits, key ordering, timestamps, and
+status. While that comparison is dirty, a `beforeunload` guard covers reloads and tab closes and
+a capture-phase click guard confirms in-app links; **Save and exit** confirms too, and **Discard
+draft** clears both local storage and the dirty state.
+
 ## Optimistic concurrency
 
 `saveResourceEdit` sends the `updatedAt` of the reviewed version. If the server has a newer
