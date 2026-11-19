@@ -23,6 +23,12 @@ export type StellarAccountInfo = {
 /**
  * Represents trustline and balance validation results.
  */
+export type StellarLedgerSummary = {
+  closedAt: string;
+  hash: string;
+  sequence: number;
+};
+
 export type PreflightValidation = {
   hasTrustline: boolean;
   balance: string | null;
@@ -70,6 +76,60 @@ export async function queryAccountInfo(
     }
     throw error;
   }
+}
+
+/**
+ * Reads the latest closed ledger from Horizon.
+ * @param network - Stellar network
+ * @param fetchImpl - Optional fetch implementation override
+ * @returns The latest ledger summary used to decide whether balances reflect a payment
+ * @throws Error when Horizon is unavailable or returns an unexpected payload
+ */
+export async function queryLatestLedger(
+  network: NetworkId,
+  fetchImpl: typeof fetch = fetch
+): Promise<StellarLedgerSummary> {
+  const networkConfig = getNetworkConfig(network);
+  const url = `${networkConfig.horizonUrl}/ledgers?order=desc&limit=1`;
+
+  const response = await fetchImpl(url, {
+    headers: { Accept: "application/json" },
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Horizon ledger API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as unknown;
+
+  if (typeof data !== "object" || data === null) {
+    throw new Error("Invalid Horizon ledger response: expected object");
+  }
+
+  const embedded = (data as Record<string, unknown>)._embedded;
+  const records =
+    typeof embedded === "object" && embedded !== null
+      ? (embedded as Record<string, unknown>).records
+      : undefined;
+  const latest = Array.isArray(records) ? records[0] : undefined;
+
+  if (typeof latest !== "object" || latest === null) {
+    throw new Error("Invalid Horizon ledger response: no ledger records");
+  }
+
+  const record = latest as Record<string, unknown>;
+  const sequence = record.sequence;
+
+  if (typeof sequence !== "number" || !Number.isInteger(sequence) || sequence <= 0) {
+    throw new Error("Invalid Horizon ledger response: missing sequence");
+  }
+
+  return {
+    closedAt: typeof record.closed_at === "string" ? record.closed_at : "",
+    hash: typeof record.hash === "string" ? record.hash : "",
+    sequence
+  };
 }
 
 /**

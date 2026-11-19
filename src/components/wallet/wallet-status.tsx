@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut, PlugZap, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useSyncExternalStore, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,15 @@ import {
   describeWalletNetwork,
   disconnectWallet,
   initialWalletState,
+  loadWalletProviderPreference,
   manualNetworkSwitchSteps,
   reconnectWallet,
+  resetWalletProviderPreference,
+  resolveWalletProvider,
+  saveWalletProviderPreference,
+  subscribeWalletProviderPreference,
   switchWalletNetwork,
+  walletProviders,
   type WalletConnectionState
 } from "@/services/wallets";
 
@@ -35,15 +41,54 @@ export function WalletStatus() {
   const [busy, setBusy] = useState<WalletRecoveryBusyState>(null);
   const [notice, setNotice] = useState<WalletRecoveryNotice | undefined>(undefined);
 
+  // Storage is external state; the server snapshot stays empty and the browser
+  // snapshot picks up the saved provider without an extra state write.
+  const preference = useSyncExternalStore(
+    subscribeWalletProviderPreference,
+    loadWalletProviderPreference,
+    () => undefined
+  );
+
   async function connect() {
     setNotice(undefined);
+
+    // A saved provider that is no longer available must surface a provider
+    // choice instead of silently approving the connection.
+    const selection = resolveWalletProvider(preference);
+
+    if (preference !== undefined && selection.provider === undefined) {
+      setNotice({ tone: "warning", message: selection.message });
+      return;
+    }
+
+    setConnecting(true);
     setWallet((current) => ({ ...current, status: "connecting" }));
-    setWallet(await connectFreighterWallet(config.defaultNetwork));
+
+    try {
+      const next = await connectFreighterWallet(config.defaultNetwork);
+      setWallet(next);
+
+      if (next.status === "connected" || next.status === "mismatch") {
+        saveWalletProviderPreference("freighter");
+      } else if (next.status === "unavailable") {
+        setNotice({ tone: "warning", message: next.error ?? "The wallet provider is unavailable." });
+      }
+    } finally {
+      setConnecting(false);
+    }
   }
 
   async function disconnect() {
     setNotice(undefined);
     setWallet(await disconnectWallet(config.defaultNetwork));
+  }
+
+  function forgetProvider() {
+    resetWalletProviderPreference();
+    setNotice({
+      message: "Saved wallet provider cleared. Choose a provider to connect again.",
+      tone: "success"
+    });
   }
 
   /**
@@ -143,6 +188,11 @@ export function WalletStatus() {
     );
   }
 
+  const savedProvider =
+    preference === undefined
+      ? undefined
+      : walletProviders.find((provider) => provider.id === preference);
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {wallet.status === "error" || wallet.status === "unavailable" ? (
@@ -157,22 +207,29 @@ export function WalletStatus() {
           {notice.message}
         </span>
       ) : null}
+      {savedProvider ? (
+        <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+          Saved provider: {savedProvider.label}
+          <Button onClick={forgetProvider} type="button" variant="ghost">
+            Forget
+          </Button>
+        </span>
+      ) : null}
       <Button
         disabled={connecting}
         onClick={() => void connect()}
-        ref={connectButtonRef}
         type="button"
         variant="secondary"
       >
         {connecting ? (
-          <PlugFap aria-hidden="true" className="h-4 w-4" />
+          <PlugZap aria-hidden="true" className="h-4 w-4" />
         ) : (
           <Wallet aria-hidden="true" className="h-4 w-4" />
         )}
         {connecting ? "Connecting" : "Connect Freighter"}
       </Button>
       <span aria-live="polite" className="sr-only" role="status">
-        {statusMessage}
+        {wallet.status === "connecting" ? "Connecting to the wallet." : "Wallet disconnected."}
       </span>
     </div>
   );

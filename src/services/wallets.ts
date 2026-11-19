@@ -6,6 +6,32 @@ import {
 } from "@/config/networks";
 import { loadRuntimeConfig } from "@/config/runtime";
 
+export const walletProviderPreferenceStorageKey = "lumenbazaar.wallet.provider.v1";
+
+export type WalletProviderId = "freighter";
+
+export type WalletProvider = {
+  id: WalletProviderId;
+  label: string;
+};
+
+/**
+ * Providers this build can connect with. The stored preference is only ever a
+ * provider identifier; no account address, authorization, or signature is
+ * persisted with it.
+ */
+export const walletProviders: readonly WalletProvider[] = [
+  { id: "freighter", label: "Freighter" }
+];
+
+export type WalletProviderSelection = {
+  message: string;
+  requiresSelection: boolean;
+  provider?: WalletProvider;
+};
+
+export type WalletProviderStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
+
 export type WalletConnectionStatus =
   | "disconnected"
   | "connecting"
@@ -110,6 +136,117 @@ export const manualNetworkSwitchSteps: readonly string[] = [
   "Switch the network to Stellar Testnet.",
   'Come back here and choose "Re-check network".'
 ];
+
+/**
+ * Reads the persisted provider identifier. Returns undefined when nothing was
+ * saved, the value is malformed, or storage is unavailable (for example during
+ * server rendering).
+ */
+export function loadWalletProviderPreference(
+  storage: WalletProviderStorage | undefined = browserWalletStorage()
+): WalletProviderId | undefined {
+  const raw = storage?.getItem(walletProviderPreferenceStorageKey);
+
+  if (raw === null || raw === undefined) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const providerId =
+      typeof parsed === "object" && parsed !== null && "providerId" in parsed
+        ? (parsed as { providerId?: unknown }).providerId
+        : undefined;
+
+    return providerId === "freighter" ? providerId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const walletProviderChangeEvent = "lumenbazaar:wallet-provider-change";
+
+/** Persists only the preferred provider identifier. */
+export function saveWalletProviderPreference(
+  providerId: WalletProviderId,
+  storage: WalletProviderStorage | undefined = browserWalletStorage()
+) {
+  storage?.setItem(
+    walletProviderPreferenceStorageKey,
+    JSON.stringify({ providerId, version: 1 })
+  );
+  notifyWalletProviderChange();
+}
+
+/** Clears the saved provider so the next connection asks the user to choose. */
+export function resetWalletProviderPreference(
+  storage: WalletProviderStorage | undefined = browserWalletStorage()
+) {
+  storage?.removeItem(walletProviderPreferenceStorageKey);
+  notifyWalletProviderChange();
+}
+
+/** Subscribes to saved provider changes from this tab and from other tabs. */
+export function subscribeWalletProviderPreference(listener: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  window.addEventListener("storage", listener);
+  window.addEventListener(walletProviderChangeEvent, listener);
+
+  return () => {
+    window.removeEventListener("storage", listener);
+    window.removeEventListener(walletProviderChangeEvent, listener);
+  };
+}
+
+function notifyWalletProviderChange() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(walletProviderChangeEvent));
+  }
+}
+
+/**
+ * Resolves the saved provider against the providers available in this session.
+ *
+ * An unavailable saved provider never falls through to auto-approval: the
+ * caller is told to ask the user to choose instead.
+ */
+export function resolveWalletProvider(
+  preference: WalletProviderId | undefined,
+  available: readonly WalletProvider[] = walletProviders
+): WalletProviderSelection {
+  if (preference === undefined) {
+    return {
+      message: "Choose a wallet provider to continue.",
+      requiresSelection: true
+    };
+  }
+
+  const provider = available.find((candidate) => candidate.id === preference);
+
+  if (provider === undefined) {
+    return {
+      message: "The saved wallet provider is not available. Choose a provider to continue.",
+      requiresSelection: true
+    };
+  }
+
+  return {
+    message: `Continue with ${provider.label}.`,
+    provider,
+    requiresSelection: false
+  };
+}
+
+function browserWalletStorage(): WalletProviderStorage | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return window.localStorage;
+}
 
 export async function connectFreighterWallet(
   expectedNetwork: NetworkId = loadRuntimeConfig().defaultNetwork
