@@ -1,6 +1,6 @@
 {
-  "reviewedAt": "2026-10-07",
-  "expiresAt": "2026-11-07",
+  "reviewedAt": "2026-11-19",
+  "expiresAt": "2026-12-19",
   "owner": "frontend-maintainers",
   "advisories": [
     {
@@ -8,7 +8,7 @@
       "module": "elliptic",
       "severity": "low",
       "path": "@creit.tech/stellar-wallets-kit > @hot-wallet/sdk > @near-js/crypto > secp256k1 > elliptic",
-      "rationale": "No patched elliptic release exists. LumenBazaar enables the Freighter module and does not invoke the hot-wallet NEAR signer path. Re-review wallet-kit upstream before expiry."
+      "rationale": "No patched elliptic release exists. LumenBazaar enables the Freighter module and does not invoke the hot-wallet NEAR signer path. High and critical advisories were cleared on 2026-11-19 by upgrading next and zod and forcing follow-redirects 1.16.2; re-review wallet-kit upstream before expiry."
     },
     {
       "id": 1119441,

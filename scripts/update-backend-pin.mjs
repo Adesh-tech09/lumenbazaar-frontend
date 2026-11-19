@@ -70,7 +70,7 @@ async function generate() {
  *   ${manifest.artifact.sha256}
  * Update mechanism:
  *   pnpm run update-backend-pin
- * Generated at: ${new Date().toISOString()}
+ * Generated at: ${manifest.generatedAt}
  */
 
 `;

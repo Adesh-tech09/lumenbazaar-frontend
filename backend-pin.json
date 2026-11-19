@@ -7,7 +7,7 @@
   },
   "artifact": {
     "path": "docs/api/openapi.json",
-    "sha256": "4eb6a7a46a79c54e6f0e6bb8c1c3f6e9b9c1c3f6e9b9c1c3f6e9b9c1c3f6e9b"
+    "sha256": "5f27bff4c89174eafe1f518e70baeeef1d4f98ea83169c2ccb9d48636a6564e0"
   },
   "generatedAt": "2026-10-16T12:00:00Z",
   "generatedBy": "pnpm run update-backend-pin"
