@@ -1,8 +1,7 @@
 "use client";
 
 import { LogOut, PlugZap, Wallet } from "lucide-react";
-import { useSyncExternalStore, useState } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,7 @@ import {
   subscribeWalletProviderPreference,
   switchWalletNetwork,
   walletProviders,
-  type WalletConnectionState
   revalidateWalletSession,
-  switchWalletNetwork,
   type WalletConnectionState,
   type WalletSessionRevalidation
 } from "@/services/wallets";
@@ -146,12 +143,11 @@ export function WalletStatus() {
       if (next.status === "connected" || next.status === "mismatch") {
         saveWalletProviderPreference("freighter");
       } else if (next.status === "unavailable") {
-        setNotice({ tone: "warning", message: next.error ?? "The wallet provider is unavailable." });
+        setNotice({
+          tone: "warning",
+          message: next.error ?? "The wallet provider is unavailable."
+        });
       }
-    setConnecting(true);
-    setWallet((current) => ({ ...current, status: "connecting" }));
-    try {
-      setWallet(await connectFreighterWallet(config.defaultNetwork));
     } finally {
       setConnecting(false);
     }
