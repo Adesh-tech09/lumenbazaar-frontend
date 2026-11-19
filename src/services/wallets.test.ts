@@ -401,6 +401,9 @@ describe("wallet provider preference", () => {
 
     expect(storage.getItem(walletProviderPreferenceStorageKey)).toBeNull();
     expect(loadWalletProviderPreference(storage)).toBeUndefined();
+  });
+});
+
 describe("wallet session revalidation", () => {
   const connected: WalletConnectionState = {
     actualNetwork: "stellar:testnet",

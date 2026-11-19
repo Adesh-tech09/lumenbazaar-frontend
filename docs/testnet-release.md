@@ -57,6 +57,45 @@ pnpm audit:prod
    Asserts health, networks, resources, and conformance endpoints respond with valid schemas.
    Captures frontend and backend commit identifiers for release evidence.
 
+## Outage and Recovery Gate
+
+```bash
+pnpm test:e2e:outage
+```
+
+Runs the production build against the deterministic mock backend and switches every API request
+between a hard network failure and the healthy mock backend. Dashboard, explore, resource detail,
+operators, transactions, and seller routes must show an explicit unavailable state (and an ARIA
+announcement where the route owns the failure), never fixture data labeled as live. Retry on
+explore and resource detail must succeed once the API recovers.
+
+## Deployed Testnet Payment Smoke Suite
+
+This suite is opt-in and targets the deployed Vercel frontend plus the deployed Render backend.
+It is not part of pull-request CI and requires no funded secret.
+
+```bash
+LUMENBAZAAR_TESTNET_SMOKE=1 \
+LUMENBAZAAR_TESTNET_FRONTEND_URL=https://<deployed-frontend> \
+LUMENBAZAAR_TESTNET_API_URL=https://<deployed-backend> \
+pnpm test:e2e:testnet-smoke
+```
+
+Optional pinning and receipt evidence:
+
+```bash
+LUMENBAZAAR_TESTNET_RESOURCE_ID=<active-paid-resource-id>
+LUMENBAZAAR_TESTNET_RECEIPT_ID=<public-receipt-id>
+LUMENBAZAAR_RELEASE_COMMIT=<frontend-commit>
+```
+
+Public read checks (`/version`, `/ready`, `/v1/supported`, discovery, resource detail, and receipt
+display when a receipt ID is supplied) run without credentials. Traces and failure screenshots are
+retained, and the suite attaches `testnet-commit-metadata` containing the frontend and backend
+commits, deployment URLs, and captured time. Wallet signature and settlement remain manual; set
+`FREIGHTER_EXTENSION_PATH` for a local reviewed wallet run. Never place a seed phrase or private
+key in CI.
+
 The external gate makes no `page.route` calls and cannot pass on successful fixture interception:
 
 ```powershell
