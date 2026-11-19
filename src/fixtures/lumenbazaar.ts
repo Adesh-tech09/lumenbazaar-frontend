@@ -419,6 +419,62 @@ export const demoDashboardMetrics = {
   supportedNetworks: ["stellar:testnet"]
 };
 
+export const demoSettlementTrends = {
+  generatedAt: "2026-09-02T16:10:00.000Z",
+  points: [
+    {
+      failedCount: 1,
+      p50LatencyMs: 410,
+      p95LatencyMs: 660,
+      settledCount: 12,
+      windowEnd: "2026-08-28T00:00:00.000Z",
+      windowStart: "2026-08-27T00:00:00.000Z"
+    },
+    {
+      failedCount: 0,
+      p50LatencyMs: 395,
+      p95LatencyMs: 610,
+      settledCount: 15,
+      windowEnd: "2026-08-29T00:00:00.000Z",
+      windowStart: "2026-08-28T00:00:00.000Z"
+    },
+    {
+      failedCount: 2,
+      p50LatencyMs: 440,
+      p95LatencyMs: 720,
+      settledCount: 11,
+      windowEnd: "2026-08-30T00:00:00.000Z",
+      windowStart: "2026-08-29T00:00:00.000Z"
+    },
+    {
+      failedCount: 1,
+      p50LatencyMs: 455,
+      p95LatencyMs: 790,
+      settledCount: 14,
+      windowEnd: "2026-08-31T00:00:00.000Z",
+      windowStart: "2026-08-30T00:00:00.000Z"
+    },
+    {
+      failedCount: 0,
+      p50LatencyMs: 430,
+      p95LatencyMs: 700,
+      settledCount: 16,
+      windowEnd: "2026-09-01T00:00:00.000Z",
+      windowStart: "2026-08-31T00:00:00.000Z"
+    },
+    {
+      failedCount: 3,
+      p50LatencyMs: null,
+      p95LatencyMs: null,
+      settledCount: null,
+      windowEnd: "2026-09-02T16:00:00.000Z",
+      windowStart: "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  window: "7d" as const,
+  windowLabel: "Last 7 days, daily UTC windows"
+};
+
 export const demoOperatorMetrics = {
   queueDepth: {
     "settlement-confirmation": 2,

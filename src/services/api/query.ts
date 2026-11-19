@@ -24,6 +24,7 @@ export const queryKeys = {
   comparison: (resourceIds: string[]) => ["comparison", resourceIds] as const,
   conformance: ["conformance"] as const,
   dashboard: ["dashboard"] as const,
+  settlementTrends: ["settlement-trends"] as const,
   health: ["health"] as const,
   networks: ["networks"] as const,
   networkStatus: ["network-status"] as const,
