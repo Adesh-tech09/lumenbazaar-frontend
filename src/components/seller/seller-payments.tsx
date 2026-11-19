@@ -23,11 +23,18 @@ import {
 } from "@/services/payments";
 import { generateExportFileName, triggerExport } from "@/lib/export-utils";
 import { emptyStateForCollection } from "@/services/ui-state";
+import { summarizeSellerEarnings } from "@/services/seller-dashboard";
+import { networkLabel } from "@/config/networks";
 
 export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId?: string }) {
   const mode = loadRuntimeConfig().environment;
   const searchParams = useSearchParams();
   const [isExporting, setIsExporting] = useState(false);
+  const allActivity = useMemo(
+    () => (isDemoMode(mode) ? loadSellerPaymentActivity(sellerId, mode) : []),
+    [sellerId, mode]
+  );
+  const earnings = useMemo(() => summarizeSellerEarnings(allActivity), [allActivity]);
 
   if (!isDemoMode(mode)) {
     return (
@@ -61,10 +68,9 @@ export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId
     resetPagination
   } = useCursorPagination({
     queryFn: async (cursor) => {
-      const allActivity = loadSellerPaymentActivity(sellerId, mode);
       // Implement simple cursor-based pagination
       const pageSize = 10;
-      const allItems = allActivity.sort(
+      const allItems = [...allActivity].sort(
         (a, b) => new Date(b.attempt.createdAt).getTime() - new Date(a.attempt.createdAt).getTime()
       );
 
@@ -77,8 +83,10 @@ export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId
       }
 
       const items = allItems.slice(startIndex, startIndex + pageSize);
-      const nextCursor = startIndex + pageSize < allItems.length ? (startIndex + pageSize).toString() : undefined;
-      const previousCursor = startIndex > 0 ? Math.max(0, startIndex - pageSize).toString() : undefined;
+      const nextCursor =
+        startIndex + pageSize < allItems.length ? (startIndex + pageSize).toString() : undefined;
+      const previousCursor =
+        startIndex > 0 ? Math.max(0, startIndex - pageSize).toString() : undefined;
 
       return {
         items,
@@ -121,6 +129,10 @@ export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId
   }, [paginatedActivity, sellerId]);
 
   const emptyState = emptyStateForCollection("payments");
+  const earningsWindow =
+    earnings.from !== null && earnings.to !== null
+      ? `${new Date(earnings.from).toLocaleString()} \u2013 ${new Date(earnings.to).toLocaleString()}`
+      : "No payment activity in this window";
 
   return (
     <>
@@ -138,6 +150,67 @@ export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId
         ) : null}
       </div>
 
+      <Card className="mb-6">
+        <CardHeader className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold text-slate-950">Earnings by asset</h2>
+          <p className="text-sm text-slate-600">
+            Settled totals grouped by network, asset code, and issuer. Window: {earningsWindow}
+          </p>
+        </CardHeader>
+        <CardBody className="relative overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <caption className="sr-only">
+              Settled payment totals per canonical asset and their status counts
+            </caption>
+            <thead className="text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">Asset</th>
+                <th className="px-3 py-2 font-medium">Issuer</th>
+                <th className="px-3 py-2 font-medium">Settled total</th>
+                <th className="px-3 py-2 font-medium">Settled</th>
+                <th className="px-3 py-2 font-medium">Pending</th>
+                <th className="px-3 py-2 font-medium">Failed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {earnings.groups.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-3 text-slate-600" colSpan={6}>
+                    Totals are unavailable until payment activity loads.
+                  </td>
+                </tr>
+              ) : (
+                earnings.groups.map((group) => (
+                  <tr key={`${group.network}:${group.assetCode}:${group.assetIssuer}`}>
+                    <td className="px-3 py-3">
+                      <p className="font-medium text-slate-950">{group.assetCode}</p>
+                      <p className="mt-1 text-xs text-slate-500">{networkLabel(group.network)}</p>
+                    </td>
+                    <td className="max-w-[16rem] break-all px-3 py-3 text-xs text-slate-600">
+                      {group.assetIssuer || "Native"}
+                    </td>
+                    <td className="px-3 py-3 font-medium text-slate-900">
+                      {group.settledTotal === null
+                        ? "Unavailable"
+                        : `${group.settledTotal} ${group.assetCode}`}
+                    </td>
+                    <td className="px-3 py-3 text-slate-700">{group.settledCount}</td>
+                    <td className="px-3 py-3 text-slate-700">{group.pendingCount}</td>
+                    <td className="px-3 py-3 text-slate-700">{group.failedCount}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          {earnings.unavailable ? (
+            <p className="mt-3 text-xs text-amber-700" role="status">
+              Some amounts could not be aggregated and are reported as unavailable instead of
+              guessed.
+            </p>
+          ) : null}
+        </CardBody>
+      </Card>
+
       {/* Error state for pagination */}
       {error ? (
         <Card>
@@ -145,11 +218,7 @@ export function SellerPayments({ sellerId = "seller_atlas_weather" }: { sellerId
             <div className="flex-1">
               <p className="text-sm font-medium text-red-900">{error.message}</p>
             </div>
-            <Button
-              onClick={resetPagination}
-              size="sm"
-              variant="secondary"
-            >
+            <Button onClick={resetPagination} size="sm" variant="secondary">
               Start over
             </Button>
           </CardBody>

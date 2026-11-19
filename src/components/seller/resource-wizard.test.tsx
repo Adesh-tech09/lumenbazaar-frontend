@@ -17,6 +17,64 @@ vi.mock("@/services/resource-edit", async (importOriginal) => {
 
 const base = demoResources[0]!;
 
+describe("ResourceWizard unsaved-change protection", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("leaves an untouched form without a warning", async () => {
+    const onCancel = vi.fn();
+    const confirm = vi.spyOn(window, "confirm");
+    const user = userEvent.setup();
+
+    render(<ResourceWizard onCancel={onCancel} sellerId="seller_atlas_weather" />);
+
+    await user.click(await screen.findByRole("button", { name: "Save and exit" }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("confirms before abandoning meaningful edits and respects dismissal", async () => {
+    const onCancel = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+
+    render(<ResourceWizard onCancel={onCancel} sellerId="seller_atlas_weather" />);
+
+    const name = await screen.findByPlaceholderText("e.g., Paid Weather API");
+    await user.type(name, "Weather API");
+    await user.click(screen.getByRole("button", { name: "Save and exit" }));
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Save and exit" }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears dirty state after discarding the draft", async () => {
+    const user = userEvent.setup();
+
+    render(<ResourceWizard onCancel={vi.fn()} sellerId="seller_atlas_weather" />);
+
+    const name = await screen.findByPlaceholderText("e.g., Paid Weather API");
+    await user.type(name, "Weather API");
+
+    const discard = screen.getByRole("button", { name: "Discard draft" });
+    expect(discard).toBeEnabled();
+
+    await user.click(discard);
+
+    expect(screen.getByText(/Draft discarded/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard draft" })).toBeDisabled();
+    expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument();
+  });
+});
+
 describe("ResourceWizard edit mode", () => {
   beforeEach(() => {
     mocks.loadResourceForEdit.mockReset();

@@ -7,7 +7,12 @@ import {
   updateDraft,
   saveDraftToStorage,
   loadDraftFromStorage,
-  clearDraftFromStorage
+  clearDraftFromStorage,
+  exportResourceDraftToJson,
+  importResourceDraftFromJson,
+  MAX_RESOURCE_DRAFT_IMPORT_BYTES,
+  ResourceDraftImportError,
+  type ResourceDraft
 } from "./resource-creation";
 
 describe("resource creation service", () => {
@@ -110,6 +115,83 @@ describe("resource creation service", () => {
       expect(updated.name).toBe("Original");
       expect(updated.type).toBe("mcp");
       expect(updated.description).toBe("New description");
+    });
+  });
+
+  describe("draft export and import", () => {
+    function completeDraft(): ResourceDraft {
+      return {
+        ...createEmptyDraft(),
+        amount: "0.0500000",
+        assetCode: "USDC",
+        assetIssuer: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+        description: "Weather data for a city",
+        extensions: { category: "weather" },
+        inputSchema: { type: "object" },
+        name: "Weather API",
+        network: "stellar:testnet",
+        outputSchema: { type: "object" },
+        payTo: "GBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQE",
+        routeTemplate: "/weather/{city}",
+        url: "https://example.test/weather"
+      };
+    }
+
+    it("round-trips every supported field", () => {
+      const draft = completeDraft();
+      const imported = importResourceDraftFromJson(exportResourceDraftToJson(draft));
+
+      expect(imported).toEqual(draft);
+    });
+
+    it("exports only allowlisted draft metadata without session or wallet secrets", () => {
+      const draft = {
+        ...completeDraft(),
+        privateKey: "S...",
+        sessionToken: "jwt",
+        signedXdr: "AAAA"
+      } as ResourceDraft;
+
+      const exported = exportResourceDraftToJson(draft);
+
+      expect(exported).not.toContain("privateKey");
+      expect(exported).not.toContain("sessionToken");
+      expect(exported).not.toContain("signedXdr");
+      expect(exported).not.toContain("S...");
+      expect(JSON.parse(exported).version).toBe(1);
+    });
+
+    it("rejects unknown versions", () => {
+      const exported = JSON.parse(exportResourceDraftToJson(completeDraft()));
+      exported.version = 99;
+
+      expect(() => importResourceDraftFromJson(JSON.stringify(exported))).toThrowError(
+        ResourceDraftImportError
+      );
+
+      try {
+        importResourceDraftFromJson(JSON.stringify(exported));
+      } catch (error) {
+        expect((error as ResourceDraftImportError).code).toBe("UNSUPPORTED_VERSION");
+      }
+    });
+
+    it("rejects oversized files before parsing", () => {
+      const oversized = "x".repeat(MAX_RESOURCE_DRAFT_IMPORT_BYTES + 1);
+
+      try {
+        importResourceDraftFromJson(oversized);
+        expect.fail("expected the import to be rejected");
+      } catch (error) {
+        expect((error as ResourceDraftImportError).code).toBe("OVERSIZED");
+      }
+    });
+
+    it("rejects invalid JSON and invalid drafts", () => {
+      expect(() => importResourceDraftFromJson("{not json")).toThrow(/not valid JSON/);
+      expect(() =>
+        importResourceDraftFromJson(JSON.stringify({ draft: { name: 1 }, version: 1 }))
+      ).toThrow(/failed validation|Invalid input/i);
     });
   });
 

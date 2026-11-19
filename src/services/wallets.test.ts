@@ -5,9 +5,11 @@ import { getNetworkConfig } from "@/config/networks";
 import {
   connectFreighterWallet,
   describeWalletNetwork,
+  describeWalletSessionChange,
   isNetworkMismatch,
   mapAuthorizationErrorToOutcome,
   reconnectWallet,
+  revalidateWalletSession,
   switchWalletNetwork,
   type WalletConnectionState,
   type WalletOutcome
@@ -326,6 +328,71 @@ describe("wallet service", () => {
       const uniqueTypes = new Set(types);
       expect(uniqueTypes.size).toBe(types.length);
     });
+  });
+});
+
+describe("wallet session revalidation", () => {
+  const connected: WalletConnectionState = {
+    actualNetwork: "stellar:testnet",
+    address: account,
+    expectedNetwork: "stellar:testnet",
+    expectedPassphrase: testnetPassphrase,
+    status: "connected"
+  };
+
+  it("reports an account change separately from a network change", () => {
+    expect(
+      describeWalletSessionChange(connected, {
+        ...connected,
+        address: "GBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQF"
+      })
+    ).toBe("account_changed");
+
+    expect(
+      describeWalletSessionChange(connected, {
+        ...connected,
+        actualNetwork: "stellar:pubnet",
+        networkPassphrase: pubnetPassphrase,
+        status: "mismatch"
+      })
+    ).toBe("network_changed");
+  });
+
+  it("treats a wallet that no longer reports a network as unverified", () => {
+    expect(
+      describeWalletSessionChange(connected, {
+        ...connected,
+        actualNetwork: undefined,
+        networkPassphrase: undefined,
+        status: "network_unknown"
+      })
+    ).toBe("network_unverified");
+  });
+
+  it("distinguishes a withdrawn session from a stale one", () => {
+    expect(
+      describeWalletSessionChange(connected, {
+        ...connected,
+        address: undefined,
+        status: "disconnected"
+      })
+    ).toBe("disconnected");
+  });
+
+  it("only allows payments while account and network still match", async () => {
+    const unchanged = await revalidateWalletSession(
+      connected,
+      "stellar:testnet",
+      async () => connected
+    );
+    expect(unchanged).toMatchObject({ canAuthorizePayments: true, change: "unchanged" });
+
+    const stale = await revalidateWalletSession(connected, "stellar:testnet", async () => ({
+      ...connected,
+      actualNetwork: "stellar:pubnet",
+      status: "mismatch"
+    }));
+    expect(stale).toMatchObject({ canAuthorizePayments: false, change: "network_changed" });
   });
 });
 

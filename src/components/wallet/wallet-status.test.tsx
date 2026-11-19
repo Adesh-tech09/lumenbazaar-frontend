@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import type { WalletConnectionState } from "@/services/wallets";
 const wallets = vi.hoisted(() => ({
   connectFreighterWallet: vi.fn(),
   reconnectWallet: vi.fn(),
+  revalidateWalletSession: vi.fn(),
   switchWalletNetwork: vi.fn()
 }));
 
@@ -18,6 +19,7 @@ vi.mock("@/services/wallets", async (importOriginal) => {
     ...actual,
     connectFreighterWallet: wallets.connectFreighterWallet,
     reconnectWallet: wallets.reconnectWallet,
+    revalidateWalletSession: wallets.revalidateWalletSession,
     switchWalletNetwork: wallets.switchWalletNetwork
   };
 });
@@ -58,6 +60,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   wallets.connectFreighterWallet.mockResolvedValue(mismatchState());
   wallets.reconnectWallet.mockResolvedValue(mismatchState());
+  wallets.revalidateWalletSession.mockResolvedValue({
+    canAuthorizePayments: true,
+    change: "unchanged",
+    wallet: connectedState()
+  });
   wallets.switchWalletNetwork.mockResolvedValue({
     type: "manual_required",
     message: "This wallet cannot change networks from this page.",
@@ -162,5 +169,72 @@ describe("WalletStatus", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByText("Wrong wallet network")).toBeInTheDocument();
+  });
+});
+
+describe("WalletStatus stale session recovery", () => {
+  beforeEach(() => {
+    wallets.connectFreighterWallet.mockResolvedValue(connectedState());
+    wallets.revalidateWalletSession.mockResolvedValue({
+      canAuthorizePayments: true,
+      change: "unchanged",
+      wallet: connectedState()
+    });
+  });
+
+  it("reports an account change after the tab is restored", async () => {
+    const user = userEvent.setup();
+    render(<WalletStatus />);
+
+    await user.click(screen.getByRole("button", { name: /Connect Freighter/i }));
+    await screen.findByText("Wallet connected");
+
+    wallets.revalidateWalletSession.mockResolvedValue({
+      canAuthorizePayments: false,
+      change: "account_changed",
+      wallet: {
+        ...connectedState(),
+        address: "GBZXN7PIRZGNMHGAIQW7QEJWW36L5CVVNRYANMDW2G3QOF2VCR4DQSQF"
+      }
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("pageshow"));
+    });
+
+    expect(await screen.findByText(/active wallet account changed/i)).toBeInTheDocument();
+    expect(wallets.revalidateWalletSession).toHaveBeenCalled();
+  });
+
+  it("moves into network recovery when the restored wallet changed networks", async () => {
+    const user = userEvent.setup();
+    render(<WalletStatus />);
+
+    await user.click(screen.getByRole("button", { name: /Connect Freighter/i }));
+    await screen.findByText("Wallet connected");
+
+    wallets.revalidateWalletSession.mockResolvedValue({
+      canAuthorizePayments: false,
+      change: "network_changed",
+      wallet: mismatchState()
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(await screen.findByText("Wrong wallet network")).toBeInTheDocument();
+  });
+
+  it("removes the revalidation listeners on unmount", async () => {
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+    const { unmount } = render(<WalletStatus />);
+
+    expect(addSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+
+    unmount();
+
+    expect(removeSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
   });
 });

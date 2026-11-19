@@ -4,7 +4,9 @@ import { ApiClientError } from "@/services/api/client";
 
 import {
   emptyStateForCollection,
+  hasMeaningfulDraftChanges,
   isSensitivePaymentKey,
+  meaningfulDraftChanges,
   normalizeUiError,
   redactSensitivePaymentData
 } from "./ui-state";
@@ -56,5 +58,45 @@ describe("UI state hardening", () => {
       walletAddress: "[redacted]"
     });
     expect(isSensitivePaymentKey("signedXdr")).toBe(true);
+  });
+});
+
+describe("seller draft dirty state", () => {
+  const baseline = {
+    amount: "0.05",
+    description: "Weather data",
+    extensions: { b: 2, a: 1 },
+    name: "Weather",
+    type: "http",
+    url: "https://example.test/weather"
+  };
+
+  it("ignores whitespace-only edits and key ordering", () => {
+    expect(
+      hasMeaningfulDraftChanges(
+        { ...baseline, description: "  Weather data  ", extensions: { a: 1, b: 2 } },
+        baseline
+      )
+    ).toBe(false);
+  });
+
+  it("reports the fields a seller actually changed", () => {
+    expect(meaningfulDraftChanges({ ...baseline, name: "Weather v2" }, baseline)).toEqual(["name"]);
+  });
+
+  it("treats timestamps and status as non-meaningful", () => {
+    const withBookkeeping = {
+      ...baseline,
+      createdAt: "later",
+      status: "draft",
+      updatedAt: "later"
+    } as unknown as Parameters<typeof hasMeaningfulDraftChanges>[0];
+
+    expect(hasMeaningfulDraftChanges(withBookkeeping, baseline)).toBe(false);
+  });
+
+  it("treats empty and undefined fields as equivalent", () => {
+    expect(hasMeaningfulDraftChanges({ url: "" }, {})).toBe(false);
+    expect(hasMeaningfulDraftChanges({ url: "https://example.test" }, {})).toBe(true);
   });
 });
