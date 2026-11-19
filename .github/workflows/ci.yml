@@ -43,6 +43,8 @@ jobs:
       - run: pnpm check
       - name: Verify deployed documentation links
         run: pnpm check:docs-links
+      - name: Validate performance budgets
+        run: pnpm performance:check
       - run: pnpm test:e2e
       - name: Run accessibility tests (desktop + mobile)
         run: pnpm test:e2e:a11y

@@ -1,0 +1,142 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-11-19T00:00:00Z",
+  "explanation": "Performance budgets track route bundle sizes and user-centric timings. These values represent maximum acceptable sizes and timings for each route. Intentional increases require explicit review and approval. Budgets are checked during CI and must be updated via 'pnpm run performance:update-budgets' when legitimate increases are needed.",
+  "routes": {
+    "/": {
+      "route": "/",
+      "bundleSize": 450000,
+      "compressedSize": 120000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/explore": {
+      "route": "/explore",
+      "bundleSize": 520000,
+      "compressedSize": 140000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/explore/compare": {
+      "route": "/explore/compare",
+      "bundleSize": 580000,
+      "compressedSize": 155000,
+      "lcpThreshold": 2800,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/operators": {
+      "route": "/operators",
+      "bundleSize": 480000,
+      "compressedSize": 130000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/operators/conformance": {
+      "route": "/operators/conformance",
+      "bundleSize": 500000,
+      "compressedSize": 135000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/operators/health": {
+      "route": "/operators/health",
+      "bundleSize": 500000,
+      "compressedSize": 135000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/receipts": {
+      "route": "/receipts",
+      "bundleSize": 470000,
+      "compressedSize": 125000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/resources": {
+      "route": "/resources",
+      "bundleSize": 480000,
+      "compressedSize": 130000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/seller": {
+      "route": "/seller",
+      "bundleSize": 520000,
+      "compressedSize": 140000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/seller/new-resource": {
+      "route": "/seller/new-resource",
+      "bundleSize": 550000,
+      "compressedSize": 145000,
+      "lcpThreshold": 2800,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/seller/payments": {
+      "route": "/seller/payments",
+      "bundleSize": 500000,
+      "compressedSize": 135000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/seller/resources": {
+      "route": "/seller/resources",
+      "bundleSize": 510000,
+      "compressedSize": 138000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/settings": {
+      "route": "/settings",
+      "bundleSize": 490000,
+      "compressedSize": 130000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/transactions": {
+      "route": "/transactions",
+      "bundleSize": 490000,
+      "compressedSize": 130000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/playground": {
+      "route": "/playground",
+      "bundleSize": 520000,
+      "compressedSize": 140000,
+      "lcpThreshold": 2800,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    },
+    "/docs": {
+      "route": "/docs",
+      "bundleSize": 460000,
+      "compressedSize": 122000,
+      "lcpThreshold": 2500,
+      "fidThreshold": 100,
+      "clsThreshold": 0.1
+    }
+  },
+  "defaults": {
+    "bundleSize": 500000,
+    "compressedSize": 150000,
+    "lcp": 2500,
+    "fid": 100,
+    "cls": 0.1
+  }
+}
