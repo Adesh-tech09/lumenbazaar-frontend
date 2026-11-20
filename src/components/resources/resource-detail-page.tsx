@@ -1,11 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { ErrorState, LoadingState } from "@/components/ui/surfaces";
+import { recordRecentlyViewed } from "@/services/bookmarks";
 import { loadResourceDetail, type ResourceDetailError } from "@/services/resource-detail";
 import { normalizeUiError } from "@/services/ui-state";
 
+import { ResourceBookmarkButton } from "./resource-bookmark-button";
 import { ResourceDetailSummary } from "./resource-detail-summary";
 import { PaymentChallengePanel } from "./payment-challenge-panel";
 import { PaymentRequirementViewer } from "./payment-requirement-viewer";
@@ -78,6 +81,12 @@ export function ResourceDetailPage({ resourceId }: { resourceId: string }) {
     queryKey: ["resource-detail", resourceId]
   });
 
+  useEffect(() => {
+    if (data !== undefined) {
+      recordRecentlyViewed({ id: data.resource.id, name: data.resource.name });
+    }
+  }, [data]);
+
   if (isLoading) {
     return <LoadingState label="Loading resource detail" />;
   }
@@ -98,6 +107,7 @@ export function ResourceDetailPage({ resourceId }: { resourceId: string }) {
 
   return (
     <div className="space-y-5">
+      <ResourceBookmarkButton name={data.resource.name} resourceId={data.resource.id} />
       <ResourceDetailSummary {...data} />
       <PaymentRequirementViewer requirement={data.requirement} />
       <PaymentChallengePanel resource={data.resource} source={data.source} />

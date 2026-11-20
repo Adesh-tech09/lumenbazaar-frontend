@@ -74,6 +74,11 @@ export function DashboardMetrics() {
 
   return (
     <div className="space-y-6">
+      {snapshot.source === "unavailable" ? (
+        <p aria-live="polite" className="sr-only" role="status">
+          Dashboard data is unavailable from the configured backend. No demo values are shown.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           tone={

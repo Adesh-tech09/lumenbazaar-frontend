@@ -16,7 +16,9 @@ export default defineConfig({
       "**/.next/**",
       "tests/e2e/**",
       "tests/live-e2e/**",
-      "tests/release-e2e/**"
+      "tests/outage-e2e/**",
+      "tests/release-e2e/**",
+      "tests/testnet-e2e/**"
     ],
     globals: true,
     setupFiles: ["./vitest.setup.ts"]

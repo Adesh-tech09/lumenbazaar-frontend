@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bookmark,
   BookOpen,
   Compass,
   CreditCard,
@@ -22,6 +23,7 @@ import { AppShellClient } from "@/components/layout/app-shell-client";
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/explore", icon: Compass, label: "Explore" },
+  { href: "/resources", icon: Bookmark, label: "Saved" },
   { href: "/seller", icon: Store, label: "Seller" },
   { href: "/playground", icon: Play, label: "Playground" },
   { href: "/transactions", icon: CreditCard, label: "Transactions" },
