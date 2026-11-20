@@ -38,6 +38,7 @@ export const PRIMARY_ROUTES: PrimaryRoute[] = [
 
   // Documentation & Resources
   { path: "/docs", name: "Documentation" },
+  { path: "/resources", name: "Saved Resources" },
   { path: "/resources/resource_weather_api", name: "Resource Detail" },
 
   // Payment & Transactions

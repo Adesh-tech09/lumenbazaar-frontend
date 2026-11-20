@@ -53,35 +53,37 @@ export function ErrorState({
   requestId?: string;
 }) {
   return (
-    <Card>
-      <CardBody className="flex min-h-32 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <AlertCircle aria-hidden="true" className="mt-1 h-5 w-5 text-red-600" />
-          <div>
-            <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
-            {code || requestId ? (
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {code ? (
-                  <span className="rounded border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">
-                    {code}
-                  </span>
-                ) : null}
-                {requestId ? (
-                  <span className="break-all rounded border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-600">
-                    {requestId}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
+    <div role="alert">
+      <Card>
+        <CardBody className="flex min-h-32 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AlertCircle aria-hidden="true" className="mt-1 h-5 w-5 text-red-600" />
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+              {code || requestId ? (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  {code ? (
+                    <span className="rounded border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">
+                      {code}
+                    </span>
+                  ) : null}
+                  {requestId ? (
+                    <span className="break-all rounded border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-600">
+                      {requestId}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-        {onRetry ? (
-          <Button type="button" variant="secondary" onClick={onRetry}>
-            Retry
-          </Button>
-        ) : null}
-      </CardBody>
-    </Card>
+          {onRetry ? (
+            <Button type="button" variant="secondary" onClick={onRetry}>
+              Retry
+            </Button>
+          ) : null}
+        </CardBody>
+      </Card>
+    </div>
   );
 }

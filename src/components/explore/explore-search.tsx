@@ -322,17 +322,14 @@ export function ExploreSearch({ initialState }: ExploreSearchProps) {
       ) : null}
 
       {unavailable ? (
-        <div role="alert">
-          <ErrorState
-            {...normalizeUiError(error, {
-              code: "BACKEND_UNAVAILABLE",
-              description:
-                "Resource discovery could not be verified against the configured backend.",
-              title: "Catalog unavailable"
-            })}
-            onRetry={() => void refetch()}
-          />
-        </div>
+        <ErrorState
+          {...normalizeUiError(error, {
+            code: "BACKEND_UNAVAILABLE",
+            description: "Resource discovery could not be verified against the configured backend.",
+            title: "Catalog unavailable"
+          })}
+          onRetry={() => void refetch()}
+        />
       ) : null}
 
       {!unavailable && data !== undefined && data.resources.length === 0 ? (
